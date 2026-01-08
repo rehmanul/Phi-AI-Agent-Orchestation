@@ -1,0 +1,184 @@
+---
+config:
+  layout: dagre
+  elk:
+    nodePlacementStrategy: NETWORK_SIMPLEX
+    mergeEdges: true
+    padding: 32
+---
+flowchart TB
+
+%% =====================================================
+%% FINAL_EVT OPERATOR VIEW — STATE-SPECIFIC FOCUS (IMPROVED)
+%% Purpose: Show only FINAL_EVT-relevant actions/processes
+%% Master Reference: .userInput/agent orchestrator 1.6.mmd
+%% =====================================================
+
+%% =====================================================
+%% TITLE & LEGEND (TOP)
+%% =====================================================
+
+TITLE["📊 FINAL_EVT Operator View<br/>Vote Imminent<br/><small>Master Reference: agent orchestrator 1.6.mmd</small>"]:::title
+
+subgraph LEGEND["📖 Visual Semantics"]
+direction LR
+LEG_HUMAN["✋ HUMAN_ACTION<br/>Human decisions required"]:::HUMAN_ACTION
+LEG_SYSTEM["⚙️ SYSTEM_FLOW<br/>System running"]:::SYSTEM_FLOW
+LEG_CONTEXT["◻ CONTEXT_REF<br/>Reference / context"]:::CONTEXT_REF
+LEG_ARROW["➡️ Thick Arrow (3px)<br/>Critical paths"]:::artifact
+end
+
+TITLE -.-> LEGEND
+
+%% =====================================================
+%% MAIN CONTENT
+%% =====================================================
+
+AVAQ(["👥 AVAQ Strategic Team"]):::human
+
+subgraph LEGISLATIVE_FINAL["📜 FINAL_EVT — Vote Imminent"]
+direction TB
+FINAL_EVT((Vote<br/>Imminent)):::HUMAN_ACTION
+FINAL_COAL("Coalition<br/>Activation"):::human
+FINAL_NARR["Final Constituent<br/>Narrative"]:::artifact
+end
+
+%% State transitions
+FLOOR_EVT((FLOOR_EVT<br/>PREVIOUS STATE)):::PRIMARY
+IMPL_EVT((Law Enacted<br/>NEXT STATE)):::PRIMARY
+
+FLOOR_EVT -->|State Transition| FINAL_EVT
+FINAL_EVT --> FINAL_COAL --> FINAL_NARR -->|State Transition| IMPL_EVT
+
+%% Human involvement
+AVAQ --> FINAL_COAL
+AVAQ --> HR_RELEASE
+
+%% AI Services supporting FINAL_EVT
+subgraph AI_SERVICES_FINAL["🤖 AI Services — FINAL_EVT Support"]
+direction TB
+AI_GENERATE("🧠 Draft & Strategy<br/>Generation"):::SYSTEM_FLOW
+end
+
+AI_GENERATE -.-> FINAL_NARR
+
+%% Human Review Gate
+subgraph HUMAN_REVIEW_FINAL["👤 Human Review — HR_RELEASE"]
+direction TB
+HR_RELEASE{Authorize Public<br/>Release?}:::HUMAN_ACTION
+end
+
+FINAL_NARR --> HR_RELEASE --o|Blocking| IMPL_EVT
+
+%% Execution Agents (FINAL_EVT scope)
+subgraph EXEC_AGENTS_FINAL["⚙️ Execution Agents — FINAL_EVT"]
+direction TB
+EX_COAL("🤝 Coalition Activation<br/>Agent"):::ai
+EX_MEDIA("📰 Media Seeding<br/>Agent"):::ai
+end
+
+EX_COAL --> EXEC_RUN
+EX_MEDIA --> EXEC_RUN
+
+%% Execution Loop
+subgraph EXECUTION_LOOP_FINAL["🔄 Execution Loop — FINAL_EVT"]
+direction TB
+EXEC_STRATEGY("🧠 Strategy<br/>Decomposition"):::SYSTEM_FLOW
+EXEC_TACTICS("🎯 Tactical<br/>Planning"):::SYSTEM_FLOW
+EXEC_RUN("⚙️ Tactic Execution<br/>Engine"):::SYSTEM_FLOW
+EXEC_MONITOR("📡 Live<br/>Monitoring"):::SYSTEM_FLOW
+EXEC_RETUNE("🔁 Tactical<br/>Retuning"):::SYSTEM_FLOW
+end
+
+EXEC_STRATEGY --> EXEC_TACTICS --> EXEC_RUN --> EXEC_MONITOR --> EXEC_RETUNE
+
+%% Campaign Operations
+subgraph CAMPAIGN_OPS_FINAL["🔥 Campaign Operations — FINAL_EVT"]
+direction TB
+THREAD_COALITION("🧵 Coalition Expansion<br/>Sprint"):::system
+THREAD_NARRATIVE("🧵 Narrative Reframing<br/>Push"):::system
+end
+
+EXEC_RUN --> THREAD_COALITION
+EXEC_RUN --> THREAD_NARRATIVE
+
+%% Outbound Influence
+subgraph OUTBOUND_FINAL["📤 Outbound Influence — FINAL_EVT"]
+direction TB
+OUT_PARTNER["🤝 Coalition Partner<br/>Activated"]:::artifact
+OUT_MEDIA["📰 Narrative Seeded<br/>to Media"]:::artifact
+OUT_POINTS["🗣️ Talking Points<br/>Distributed"]:::artifact
+end
+
+THREAD_COALITION --> OUT_PARTNER
+THREAD_NARRATIVE --> OUT_MEDIA
+THREAD_COALITION --> OUT_POINTS
+
+OUT_MEDIA --> EXEC_MONITOR
+OUT_PARTNER --> EXEC_MONITOR
+OUT_POINTS --> EXEC_MONITOR
+
+%% Memory & Learning
+subgraph MEMORY_FINAL["🗄️ Memory — FINAL_EVT"]
+direction TB
+MEM_OUTCOMES[(📈 Legislative<br/>Outcomes)]:::DATA
+MEM_NARRATIVE[(🗣️ Narrative<br/>Effectiveness Log)]:::DATA
+MEM_TACTICS[(📊 Tactic Performance<br/>History)]:::DATA
+end
+
+FINAL_EVT --> MEM_OUTCOMES
+OUT_MEDIA --> MEM_NARRATIVE
+EXEC_MONITOR --> MEM_NARRATIVE
+
+%% Learning Agents
+subgraph LEARN_AGENTS_FINAL["📐 Learning Agents — FINAL_EVT"]
+direction TB
+LR_TACTIC("📊 Tactic Performance<br/>Learner"):::ai
+LR_NARR("🗣️ Narrative Effectiveness<br/>Learner"):::ai
+LR_ATTRIB("📈 Outcome Attribution<br/>Agent"):::ai
+end
+
+LR_TACTIC --> MEM_TACTICS
+LR_NARR --> MEM_NARRATIVE
+LR_ATTRIB --> MEM_OUTCOMES
+
+%% =====================================================
+%% IMPROVED STYLING CLASSES (HIGH CONTRAST)
+%% =====================================================
+
+%% Primary (States - High emphasis)
+classDef PRIMARY fill:#1E40AF,stroke:#1E3A8A,stroke-width:3px,color:#FFFFFF,font-weight:bold,font-size:14px
+
+%% Human Actions (Review Gates - Urgent attention)
+classDef HUMAN_ACTION fill:#FEE2E2,stroke:#DC2626,stroke-width:4px,color:#000000,font-weight:bold,font-size:13px
+
+%% System Flow (AI Services, Execution - Active processes)
+classDef SYSTEM_FLOW fill:#DBEAFE,stroke:#2563EB,stroke-width:2.5px,color:#000000,font-size:12px
+
+%% Context Reference (Memory, Learning - Background)
+classDef CONTEXT_REF fill:#F3F4F6,stroke:#6B7280,stroke-width:1.5px,stroke-dasharray:5 5,color:#4B5563,font-size:11px,font-style:italic
+
+%% Artifacts (Documents, Outputs)
+classDef artifact fill:#E0E7FF,stroke:#6366F1,stroke-width:2px,color:#000000,font-size:12px
+
+%% Data Stores
+classDef DATA fill:#FEF3C7,stroke:#F59E0B,stroke-width:2px,color:#000000,font-size:11px
+
+%% Legacy classes (for compatibility)
+classDef human fill:#E0F2FE,stroke:#0369A1,stroke-width:2px
+classDef ai fill:#F3E8FF,stroke:#7C3AED,stroke-width:2px
+classDef system fill:#ECFDF5,stroke:#047857,stroke-width:2px
+classDef decision fill:#FEE2E2,stroke:#991B1B,stroke-width:2px
+classDef title fill:#FFFFFF,stroke:#000000,stroke-width:2px,font-weight:bold,font-size:16px
+
+%% Apply improved styling
+class FLOOR_EVT,IMPL_EVT PRIMARY
+class HR_RELEASE,FINAL_EVT HUMAN_ACTION
+class AI_GENERATE,EXEC_STRATEGY,EXEC_TACTICS,EXEC_RUN,EXEC_MONITOR,EXEC_RETUNE SYSTEM_FLOW
+class MEMORY_FINAL,MEM_OUTCOMES,MEM_NARRATIVE,MEM_TACTICS CONTEXT_REF
+class FINAL_NARR,OUT_PARTNER,OUT_MEDIA,OUT_POINTS artifact
+class MEM_OUTCOMES,MEM_NARRATIVE,MEM_TACTICS DATA
+
+%% Thick arrows for state transitions
+linkStyle 0 stroke:#000000,stroke-width:3px
+linkStyle 1 stroke:#000000,stroke-width:3px

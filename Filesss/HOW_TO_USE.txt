@@ -1,0 +1,93 @@
+═══════════════════════════════════════════════════════════════
+   RISK MANAGEMENT SYSTEM - QUICK START GUIDE
+═══════════════════════════════════════════════════════════════
+
+🚀 EASIEST WAY TO START (Double-Click):
+   
+   📄 LAUNCH.bat
+   
+   This will:
+   - Check prerequisites (Python & Node.js)
+   - Start backend server (port 8002)
+   - Start frontend server (port 3000)
+   - Open browser automatically
+   
+   ✓ Two windows will open (backend & frontend)
+   ✓ Browser will open to http://localhost:3000
+   ✓ This window can be closed (servers keep running)
+
+───────────────────────────────────────────────────────────────
+
+📋 OTHER BATCH FILES AVAILABLE:
+
+   1. START_SYSTEM.bat
+      - Same as LAUNCH.bat but with more detailed output
+      
+   2. START_BACKEND_ONLY.bat
+      - Starts only the backend server
+      - Useful for API development/testing
+      
+   3. START_FRONTEND_ONLY.bat
+      - Starts only the frontend server
+      - Use when backend is already running
+      
+   4. STOP_SYSTEM.bat
+      - Stops all running servers
+      - Kills processes on ports 8002 and 3000
+
+───────────────────────────────────────────────────────────────
+
+🛑 TO STOP THE SYSTEM:
+
+   Option 1: Double-click STOP_SYSTEM.bat
+   
+   Option 2: Close the backend and frontend windows
+            (Ctrl+C in each window)
+
+───────────────────────────────────────────────────────────────
+
+📖 FIRST TIME SETUP:
+
+   1. Make sure you have:
+      • Python 3.8+ installed
+      • Node.js 18+ installed
+      
+   2. Double-click LAUNCH.bat
+      - It will automatically install dependencies
+      - First launch may take a few minutes
+      
+   3. Wait for browser to open
+      - Backend takes ~5 seconds to start
+      - Frontend takes ~10 seconds to start
+
+───────────────────────────────────────────────────────────────
+
+🌐 URLS:
+
+   Frontend:  http://localhost:3000
+   Backend:   http://localhost:8002
+   API Docs:  http://localhost:8002/docs
+
+───────────────────────────────────────────────────────────────
+
+❓ TROUBLESHOOTING:
+
+   Problem: "Python not found"
+   Solution: Install Python from python.org
+   
+   Problem: "Node.js not found"
+   Solution: Install Node.js from nodejs.org
+   
+   Problem: Port already in use
+   Solution: Run STOP_SYSTEM.bat first
+   
+   Problem: Frontend won't start
+   Solution: Delete frontend/node_modules and try again
+
+───────────────────────────────────────────────────────────────
+
+📝 FOR MORE DETAILS:
+
+   See QUICK_START.md for complete documentation
+
+═══════════════════════════════════════════════════════════════

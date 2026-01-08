@@ -1,0 +1,97 @@
+---
+config:
+  layout: dagre
+  elk:
+    nodePlacementStrategy: NETWORK_SIMPLEX
+    mergeEdges: true
+    padding: 16
+---
+flowchart TB
+
+%% =====================================================
+%% OPERATOR VIEW SYSTEM CONTEXT
+%% Purpose: Show where operator views live in the system
+%% =====================================================
+
+subgraph MASTER["📊 Master Diagram"]
+direction TB
+MASTER_DIAGRAM["agent orchestrator 1.6.mmd<br/>Complete System Architecture<br/>939 lines · All states · All agents"]:::artifact
+end
+
+subgraph OPERATOR_VIEWS["🎯 State-Specific Operator Views"]
+direction TB
+PRE_VIEW["PRE_EVT Operator View<br/>Policy Opportunity Detected"]:::artifact
+COMM_VIEW["COMM_EVT Operator View<br/>Committee Referral"]:::artifact
+FLOOR_VIEW["FLOOR_EVT Operator View<br/>Floor Scheduled"]:::artifact
+FINAL_VIEW["FINAL_EVT Operator View<br/>Vote Imminent"]:::artifact
+IMPL_VIEW["IMPL_EVT Operator View<br/>Law Enacted"]:::artifact
+end
+
+subgraph DOCUMENTATION["📚 Documentation"]
+direction TB
+GUIDE["OPERATOR_VIEW_GUIDE.md<br/>How to use operator views<br/>When to reference master"]:::artifact
+MASTER_REF["MASTER_DIAGRAM_REFERENCE.md<br/>Master diagram documentation"]:::artifact
+end
+
+subgraph STYLING["🎨 Visual Semantics"]
+direction TB
+HUMAN_STYLE["HUMAN_ACTION<br/>Thick black border<br/>Human decisions required"]:::HUMAN_ACTION
+SYSTEM_STYLE["SYSTEM_FLOW<br/>Gray box<br/>System running automatically"]:::SYSTEM_FLOW
+CONTEXT_STYLE["CONTEXT_REF<br/>Dashed border<br/>Reference / context"]:::CONTEXT_REF
+THICK_ARROW["Thick Arrows (3px)<br/>Blocking paths<br/>State transitions"]:::artifact
+end
+
+subgraph STATES["📜 Legislative States"]
+direction TB
+PRE_EVT((PRE_EVT)):::system
+COMM_EVT((COMM_EVT)):::system
+FLOOR_EVT((FLOOR_EVT)):::system
+FINAL_EVT((FINAL_EVT)):::decision
+IMPL_EVT((IMPL_EVT)):::system
+end
+
+%% Connections
+MASTER_DIAGRAM --> PRE_VIEW
+MASTER_DIAGRAM --> COMM_VIEW
+MASTER_DIAGRAM --> FLOOR_VIEW
+MASTER_DIAGRAM --> FINAL_VIEW
+MASTER_DIAGRAM --> IMPL_VIEW
+
+PRE_EVT --> PRE_VIEW
+COMM_EVT --> COMM_VIEW
+FLOOR_EVT --> FLOOR_VIEW
+FINAL_EVT --> FINAL_VIEW
+IMPL_EVT --> IMPL_VIEW
+
+GUIDE --> PRE_VIEW
+GUIDE --> COMM_VIEW
+GUIDE --> FLOOR_VIEW
+GUIDE --> FINAL_VIEW
+GUIDE --> IMPL_VIEW
+
+MASTER_REF --> MASTER_DIAGRAM
+
+HUMAN_STYLE -.-> PRE_VIEW
+SYSTEM_STYLE -.-> PRE_VIEW
+CONTEXT_STYLE -.-> PRE_VIEW
+THICK_ARROW -.-> PRE_VIEW
+
+%% Styling Classes
+classDef HUMAN_ACTION fill:#FFFFFF,stroke:#000000,stroke-width:4px,color:#000000
+classDef SYSTEM_FLOW fill:#F2F2F2,stroke:#333333,stroke-width:2px,color:#000000
+classDef CONTEXT_REF fill:#FFFFFF,stroke:#999999,stroke-width:1px,stroke-dasharray:5 5,color:#666666
+classDef artifact fill:#DBEAFE,stroke:#1E40AF,stroke-width:2px
+classDef system fill:#ECFDF5,stroke:#047857,stroke-width:2px
+classDef decision fill:#FEE2E2,stroke:#991B1B,stroke-width:2px
+
+class HUMAN_STYLE HUMAN_ACTION
+class SYSTEM_STYLE,PRE_EVT,COMM_EVT,FLOOR_EVT,IMPL_EVT SYSTEM_FLOW
+class CONTEXT_STYLE,FINAL_EVT CONTEXT_REF
+
+%% Legend
+subgraph LEGEND["📖 LEGEND — Visual Semantics"]
+direction TB
+LEG_HUMAN["✋ HUMAN_ACTION\nThick black border = Human decision required"]:::HUMAN_ACTION
+LEG_SYSTEM["⚙️ SYSTEM_FLOW\nGray box = System running"]:::SYSTEM_FLOW
+LEG_CONTEXT["◻ CONTEXT_REF\nDashed border = Reference / context"]:::CONTEXT_REF
+end

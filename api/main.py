@@ -12,7 +12,7 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes import campaigns, content, intelligence, legislators, metrics, agents, settings
+from api.routes import campaigns, content, intelligence, legislators, metrics, agents, settings, documents
 from core.config import settings as app_settings
 from core.database import async_engine
 from core.messaging import shutdown_producer
@@ -51,7 +51,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=app_settings.cors_origins,
+    allow_origins=["*"],  # Allow all origins for development
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -65,6 +65,7 @@ app.include_router(content.router, prefix="/api/content", tags=["Content"])
 app.include_router(metrics.router, prefix="/api/metrics", tags=["Metrics"])
 app.include_router(agents.router, prefix="/api/agents", tags=["Agents"])
 app.include_router(settings.router, prefix="/api", tags=["Settings"])
+app.include_router(documents.router, prefix="/api", tags=["Documents"])
 
 
 @app.get("/health")

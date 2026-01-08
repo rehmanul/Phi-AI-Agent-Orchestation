@@ -1,0 +1,105 @@
+---
+config:
+  layout: elk
+---
+flowchart TB
+    subgraph "User Interface Layer"
+        UI[Artifact Review Console<br/>ARTIFACT_INDEX.html]
+        DASH[Agent Dashboard<br/>AGENT_DASHBOARD.html]
+        ORCH[Orchestration UI<br/>ORCHESTRATION_UI.html]
+    end
+    
+    subgraph "FastAPI Backend (Port 8000)"
+        API[API Routes<br/>app/routes.py]
+        HEALTH[/api/v1/health<br/>Health Check]
+        INDEX[/api/v1/artifacts/index<br/>Artifact Catalog]
+        REVIEW[/api/v1/artifacts/path/review<br/>Approve/Reject]
+        BRIEF[/api/v1/artifacts/generate-brief<br/>LLM Handoff]
+        AGENTS[/api/v1/agents/status<br/>Agent Status]
+    end
+    
+    subgraph "Data Layer"
+        ARTIFACTS[Artifacts Directory<br/>artifacts/]
+        QUEUES[Review Queues<br/>review/HR_*_queue.json]
+        REGISTRY[Agent Registry<br/>registry/agent-registry.json]
+        AUDIT[Audit Log<br/>audit/audit-log.jsonl]
+    end
+    
+    subgraph "Multi-Agent System"
+        INTEL[Intelligence Agents<br/>intel_*]
+        DRAFT[Drafting Agents<br/>draft_*]
+        EXEC[Execution Agents<br/>execution_*]
+        LEARN[Learning Agents<br/>learning_*]
+    end
+    
+    subgraph "Review Gates"
+        HR_PRE[HR_PRE Gate<br/>Pre-Event Review]
+        HR_LANG[HR_LANG Gate<br/>Language Review]
+        HR_MSG[HR_MSG Gate<br/>Messaging Review]
+        HR_RELEASE[HR_RELEASE Gate<br/>Release Review]
+    end
+    
+    subgraph "LLM Handoff"
+        BRIEF_GEN[One-Look Brief Generator<br/>What/Why/Who/How/What Exactly]
+        EXPORT[LLM Export Format<br/>JSON/Markdown]
+    end
+    
+    %% User interactions
+    UI -->|1. Load Artifacts| INDEX
+    UI -->|2. Check Status| HEALTH
+    UI -->|3. Approve/Reject| REVIEW
+    UI -->|4. Generate Brief| BRIEF
+    
+    DASH -->|Monitor Agents| AGENTS
+    ORCH -->|Spawn/Execute| API
+    
+    %% API to data
+    INDEX -->|Scan| ARTIFACTS
+    INDEX -->|Load Status| QUEUES
+    REVIEW -->|Update| ARTIFACTS
+    REVIEW -->|Update| QUEUES
+    REVIEW -->|Log| AUDIT
+    AGENTS -->|Read| REGISTRY
+    AGENTS -->|Read| ARTIFACTS
+    
+    %% Agent workflows
+    INTEL -->|Generate| ARTIFACTS
+    DRAFT -->|Generate| ARTIFACTS
+    DRAFT -->|Submit| HR_PRE
+    DRAFT -->|Submit| HR_LANG
+    EXEC -->|Generate Plans| ARTIFACTS
+    EXEC -->|Submit| HR_MSG
+    LEARN -->|Analyze| ARTIFACTS
+    
+    %% Review flow
+    HR_PRE -->|Approved| QUEUES
+    HR_LANG -->|Approved| QUEUES
+    HR_MSG -->|Approved| QUEUES
+    HR_RELEASE -->|Approved| QUEUES
+    
+    %% LLM handoff
+    BRIEF -->|Aggregate| ARTIFACTS
+    BRIEF -->|Generate| BRIEF_GEN
+    BRIEF_GEN -->|Export| EXPORT
+    
+    %% API routing
+    HEALTH --> API
+    INDEX --> API
+    REVIEW --> API
+    BRIEF --> API
+    AGENTS --> API
+    
+    %% Styling
+    classDef ui fill:#DBEAFE,stroke:#1E40AF,stroke-width:2px
+    classDef api fill:#DCFCE7,stroke:#15803D,stroke-width:2px
+    classDef data fill:#FEF3C7,stroke:#D97706,stroke-width:2px
+    classDef agent fill:#E0E7FF,stroke:#4338CA,stroke-width:2px
+    classDef gate fill:#FCE7F3,stroke:#BE185D,stroke-width:2px
+    classDef llm fill:#F0FDF4,stroke:#16A34A,stroke-width:2px
+    
+    class UI,DASH,ORCH ui
+    class API,HEALTH,INDEX,REVIEW,BRIEF,AGENTS api
+    class ARTIFACTS,QUEUES,REGISTRY,AUDIT data
+    class INTEL,DRAFT,EXEC,LEARN agent
+    class HR_PRE,HR_LANG,HR_MSG,HR_RELEASE gate
+    class BRIEF_GEN,EXPORT llm

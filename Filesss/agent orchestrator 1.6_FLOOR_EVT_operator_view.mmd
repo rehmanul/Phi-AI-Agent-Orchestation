@@ -1,0 +1,224 @@
+---
+config:
+  layout: dagre
+  elk:
+    nodePlacementStrategy: NETWORK_SIMPLEX
+    mergeEdges: true
+    padding: 32
+---
+flowchart TB
+
+%% =====================================================
+%% FLOOR_EVT OPERATOR VIEW — STATE-SPECIFIC FOCUS
+%% Purpose: Show only FLOOR_EVT-relevant actions/processes
+%% Master Reference: .userInput/agent orchestrator 1.6.mmd
+%% =====================================================
+
+%% =====================================================
+%% TITLE & LEGEND (TOP)
+%% =====================================================
+
+TITLE["📊 FLOOR_EVT Operator View<br/>Floor Scheduled<br/><small>Master Reference: agent orchestrator 1.6.mmd</small>"]:::title
+
+subgraph LEGEND["📖 Visual Semantics"]
+direction LR
+LEG_HUMAN["✋ HUMAN_ACTION<br/>Human decisions required"]:::HUMAN_ACTION
+LEG_SYSTEM["⚙️ SYSTEM_FLOW<br/>System running"]:::SYSTEM_FLOW
+LEG_CONTEXT["◻ CONTEXT_REF<br/>Reference / context"]:::CONTEXT_REF
+LEG_ARROW["➡️ Thick Arrow (3px)<br/>Critical paths"]:::artifact
+end
+
+TITLE -.-> LEGEND
+
+%% =====================================================
+%% MAIN CONTENT
+%% =====================================================
+
+AVAQ(["👥 AVAQ Strategic Team"]):::human
+
+subgraph LEGISLATIVE_FLOOR["📜 FLOOR_EVT — Floor Scheduled"]
+direction TB
+FLOOR_EVT((Floor Scheduled)):::system
+FLOOR_MSG["Floor Messaging & Talking Points"]:::artifact
+FLOOR_TIMING("Timing & Vote Whip Strategy"):::human
+FLOOR_MEDIA["Press & Media Narrative"]:::artifact
+end
+
+%% State transitions
+COMM_EVT((COMM_EVT<br/>PREVIOUS STATE)):::system
+FINAL_EVT((Vote Imminent<br/>NEXT STATE)):::decision
+
+COMM_EVT --> FLOOR_EVT
+FLOOR_EVT --> FLOOR_MSG --> FLOOR_TIMING --> FLOOR_MEDIA --> FINAL_EVT
+
+%% Human involvement
+AVAQ --> FLOOR_TIMING
+AVAQ --> HR_MSG
+
+%% AI Services supporting FLOOR_EVT
+subgraph AI_SERVICES_FLOOR["🤖 AI Services — FLOOR_EVT Support"]
+direction TB
+AI_GENERATE("🧠 Draft & Strategy<br/>Generation"):::SYSTEM_FLOW
+AI_SCORE("📊 Impact & Risk<br/>Scoring"):::SYSTEM_FLOW
+end
+
+AI_GENERATE -.-> FLOOR_MSG
+AI_GENERATE -.-> FLOOR_MEDIA
+
+%% Human Review Gate
+subgraph HUMAN_REVIEW_FLOOR["👤 Human Review — HR_MSG"]
+direction TB
+HR_MSG{Approve Messaging & Narrative?}:::decision
+end
+
+FLOOR_MEDIA --> HR_MSG --o|Blocking| FINAL_EVT
+
+%% Drafting Agents (FLOOR_EVT scope)
+subgraph DRAFT_AGENTS_FLOOR["🧠 Drafting Agents — FLOOR_EVT"]
+direction TB
+DR_MSG("🗣️ Messaging Draft Agent"):::ai
+end
+
+DR_MSG --> FLOOR_MEDIA
+DR_MSG -.-> HR_MSG
+
+%% Execution Agents (FLOOR_EVT scope)
+subgraph EXEC_AGENTS_FLOOR["⚙️ Execution Agents — FLOOR_EVT"]
+direction TB
+EX_MEDIA("📰 Media Seeding Agent"):::ai
+EX_COUNTER("🧯 Counter-Pressure Agent"):::ai
+end
+
+EX_MEDIA --> EXEC_RUN
+EX_COUNTER --> EXEC_RUN
+
+%% Execution Loop
+subgraph EXECUTION_LOOP_FLOOR["🔄 Execution Loop — FLOOR_EVT"]
+direction TB
+EXEC_STRATEGY("🧠 Strategy Decomposition"):::ai
+EXEC_TACTICS("🎯 Tactical Planning"):::ai
+EXEC_RUN("⚙️ Tactic Execution Engine"):::system
+EXEC_MONITOR("📡 Live Monitoring"):::system
+EXEC_ALERT((⚠️ Deviation / Opportunity Detected)):::ai
+EXEC_RETUNE("🔁 Tactical Retuning"):::ai
+end
+
+EXEC_STRATEGY --> EXEC_TACTICS --> EXEC_RUN --> EXEC_MONITOR --> EXEC_ALERT --> EXEC_RETUNE
+EXEC_ALERT -.-> AVAQ
+
+%% Campaign Operations
+subgraph CAMPAIGN_OPS_FLOOR["🔥 Campaign Operations — FLOOR_EVT"]
+direction TB
+THREAD_NARRATIVE("🧵 Narrative Reframing Push"):::system
+THREAD_OPPOSITION("🧵 Opposition Neutralization Track"):::system
+end
+
+EXEC_RUN --> THREAD_NARRATIVE
+EXEC_RUN --> THREAD_OPPOSITION
+
+%% Opportunity Windows
+subgraph OPPORTUNITIES_FLOOR["⏰ Opportunity Windows — FLOOR_EVT"]
+direction TB
+WIN_MSG((🪟 48-Hour Messaging Window)):::decision
+WIN_MEMBER((🪟 Undecided Member Window)):::decision
+WIN_AMEND((🪟 Amendment Timing Window)):::decision
+WIN_MEDIA((🪟 Media Cycle Alignment Window)):::decision
+end
+
+EXEC_MONITOR --> WIN_MSG
+EXEC_MONITOR --> WIN_MEMBER
+EXEC_MONITOR --> WIN_AMEND
+EXEC_MONITOR --> WIN_MEDIA
+
+WIN_MSG -.-> EXEC_TACTICS
+WIN_MEMBER -.-> EXEC_TACTICS
+WIN_AMEND -.-> EXEC_TACTICS
+WIN_MEDIA -.-> EXEC_TACTICS
+
+%% Marketing Intelligence
+subgraph MARKETING_FLOOR["📣 Messaging Intelligence — FLOOR_EVT"]
+direction TB
+MSG_TEST("🧪 Message Variant Testing"):::ai
+MSG_SIGNAL("📡 Media & Public Signal Capture"):::system
+MSG_SCORE("📊 Persuasion Effectiveness Scoring"):::ai
+end
+
+FLOOR_MEDIA --> MSG_TEST
+MSG_TEST --> MSG_SIGNAL --> MSG_SCORE
+
+%% Memory & Learning
+subgraph MEMORY_FLOOR["🗄️ Memory — FLOOR_EVT"]
+direction TB
+MEM_NARRATIVE[(🗣️ Narrative<br/>Effectiveness Log)]:::DATA
+MEM_TACTICS[(📊 Tactic Performance<br/>History)]:::DATA
+end
+
+FLOOR_MEDIA --> MEM_NARRATIVE
+MSG_SCORE --> MEM_NARRATIVE
+EXEC_MONITOR --> MEM_NARRATIVE
+EXEC_ALERT --> MEM_TACTICS
+
+%% Momentum Signals
+subgraph MOMENTUM_FLOOR["📈 Campaign Momentum — FLOOR_EVT"]
+direction TB
+MOM_UP((⬆️ Momentum Building)):::system
+MOM_FLAT((➡️ Momentum Stalling)):::system
+MOM_DOWN((⬇️ Resistance Increasing)):::system
+end
+
+EXEC_ALERT --> MOM_UP
+EXEC_ALERT --> MOM_FLAT
+EXEC_ALERT --> MOM_DOWN
+
+MOM_UP -.-> EXEC_RETUNE
+MOM_FLAT -.-> EXEC_RETUNE
+MOM_DOWN -.-> EXEC_RETUNE
+
+%% Styling Classes
+classDef human fill:#E0F2FE,stroke:#0369A1,stroke-width:2px
+classDef ai fill:#F3E8FF,stroke:#7C3AED,stroke-width:2px
+classDef system fill:#ECFDF5,stroke:#047857,stroke-width:2px
+classDef artifact fill:#DBEAFE,stroke:#1E40AF,stroke-width:2px
+classDef data fill:#FEF9C3,stroke:#CA8A04,stroke-width:2px
+classDef decision fill:#FEE2E2,stroke:#991B1B,stroke-width:2px
+
+%% =====================================================
+%% IMPROVED STYLING CLASSES (HIGH CONTRAST)
+%% =====================================================
+
+%% Primary (States - High emphasis)
+classDef PRIMARY fill:#1E40AF,stroke:#1E3A8A,stroke-width:3px,color:#FFFFFF,font-weight:bold,font-size:14px
+
+%% Human Actions (Review Gates - Urgent attention)
+classDef HUMAN_ACTION fill:#FEE2E2,stroke:#DC2626,stroke-width:4px,color:#000000,font-weight:bold,font-size:13px
+
+%% System Flow (AI Services, Execution - Active processes)
+classDef SYSTEM_FLOW fill:#DBEAFE,stroke:#2563EB,stroke-width:2.5px,color:#000000,font-size:12px
+
+%% Context Reference (Memory, Learning - Background)
+classDef CONTEXT_REF fill:#F3F4F6,stroke:#6B7280,stroke-width:1.5px,stroke-dasharray:5 5,color:#4B5563,font-size:11px,font-style:italic
+
+%% Artifacts (Documents, Outputs)
+classDef artifact fill:#E0E7FF,stroke:#6366F1,stroke-width:2px,color:#000000,font-size:12px
+
+%% Data Stores
+classDef DATA fill:#FEF3C7,stroke:#F59E0B,stroke-width:2px,color:#000000,font-size:11px
+
+%% Legacy classes (for compatibility)
+classDef human fill:#E0F2FE,stroke:#0369A1,stroke-width:2px
+classDef ai fill:#F3E8FF,stroke:#7C3AED,stroke-width:2px
+classDef system fill:#ECFDF5,stroke:#047857,stroke-width:2px
+classDef decision fill:#FEE2E2,stroke:#991B1B,stroke-width:2px
+classDef title fill:#FFFFFF,stroke:#000000,stroke-width:2px,font-weight:bold,font-size:16px
+
+%% Apply improved styling
+class FLOOR_EVT,COMM_EVT PRIMARY
+class HR_MSG,FINAL_EVT HUMAN_ACTION
+class AI_GENERATE,AI_SCORE,EXEC_STRATEGY,EXEC_TACTICS,EXEC_RUN,EXEC_MONITOR,EXEC_ALERT,EXEC_RETUNE SYSTEM_FLOW
+class MEMORY_FLOOR,MEM_NARRATIVE,MEM_TACTICS,MARKETING_FLOOR,MOMENTUM_FLOOR CONTEXT_REF
+class FLOOR_MSG,FLOOR_MEDIA artifact
+class MEM_NARRATIVE,MEM_TACTICS DATA
+
+%% Thick arrows for state transitions
+linkStyle 0 stroke:#000000,stroke-width:3px
+linkStyle 1 stroke:#000000,stroke-width:3px

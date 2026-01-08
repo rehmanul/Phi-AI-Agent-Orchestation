@@ -1,0 +1,63 @@
+---
+config:
+  layout: elk
+---
+flowchart TB
+    subgraph "User Interface"
+        VIEWER[Artifact Review Console<br/>http://localhost:8000/viewer/]
+        STATUS[Server Status Indicator<br/>🟢 Online / 🔴 Offline]
+    end
+    
+    subgraph "Phase 1: API Integration ✅"
+        API1[GET /api/health<br/>Health Check]
+        API2[GET /api/v1/artifacts/index<br/>Live Artifact Catalog]
+        API3[GET /api/reviews<br/>Review Queues Summary]
+    end
+    
+    subgraph "Phase 2: Review & Approval ✅"
+        API4[POST /api/reviews<br/>Approve/Reject/Revise]
+        BUTTONS[Review Controls<br/>✓ Approve / ↻ Revise / ✗ Reject]
+    end
+    
+    subgraph "Phase 3: LLM Handoff ✅"
+        API5[POST /api/brief<br/>Generate Brief]
+        API6[GET /api/brief/md<br/>Markdown Export]
+    end
+    
+    subgraph "Data Layer"
+        ARTIFACTS[Artifacts Directory<br/>104+ artifacts]
+        QUEUES[Review Queues<br/>review/HR_*_queue.json]
+        FILES[Artifact Files<br/>JSON with _meta blocks]
+    end
+    
+    VIEWER -->|1. Check Health| API1
+    VIEWER -->|2. Load Artifacts| API2
+    VIEWER -->|3. Load Reviews| API3
+    VIEWER -->|4. Submit Review| API4
+    VIEWER -->|5. Generate Brief| API5
+    VIEWER -->|6. View Brief| API6
+    
+    STATUS -->|Real-time| API1
+    
+    BUTTONS -->|Click Action| API4
+    
+    API2 -->|Scans| ARTIFACTS
+    API2 -->|Merges Status| QUEUES
+    API3 -->|Reads| QUEUES
+    API4 -->|Updates| QUEUES
+    API4 -->|Updates| FILES
+    API5 -->|Aggregates| QUEUES
+    API5 -->|Loads Content| FILES
+    
+    %% Styling
+    classDef phase1 fill:#DBEAFE,stroke:#1E40AF,stroke-width:3px
+    classDef phase2 fill:#DCFCE7,stroke:#15803D,stroke-width:3px
+    classDef phase3 fill:#FEF3C7,stroke:#D97706,stroke-width:3px
+    classDef ui fill:#E0E7FF,stroke:#4338CA,stroke-width:2px
+    classDef data fill:#F3F4F6,stroke:#6B7280,stroke-width:2px
+    
+    class API1,API2,API3 phase1
+    class API4,BUTTONS phase2
+    class API5,API6 phase3
+    class VIEWER,STATUS ui
+    class ARTIFACTS,QUEUES,FILES data

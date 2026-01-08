@@ -1,0 +1,178 @@
+---
+config:
+  layout: dagre
+  elk:
+    nodePlacementStrategy: NETWORK_SIMPLEX
+    mergeEdges: true
+    padding: 32
+---
+flowchart TB
+
+%% =====================================================
+%% IMPROVED PRE_EVT OPERATOR VIEW
+%% Design Improvements Applied:
+%% - High-contrast color palette
+%% - Legend at top
+%% - Improved visual hierarchy
+%% - Better spacing and typography
+%% =====================================================
+
+%% =====================================================
+%% TITLE & LEGEND (TOP)
+%% =====================================================
+
+TITLE["📊 PRE_EVT Operator View<br/>Policy Opportunity Detected<br/><small>Master Reference: agent orchestrator 1.6.mmd</small>"]:::title
+
+subgraph LEGEND["📖 Visual Semantics"]
+direction LR
+LEG_HUMAN["✋ HUMAN_ACTION<br/>Human decisions required"]:::HUMAN_ACTION
+LEG_SYSTEM["⚙️ SYSTEM_FLOW<br/>System running"]:::SYSTEM_FLOW
+LEG_CONTEXT["◻ CONTEXT_REF<br/>Reference / context"]:::CONTEXT_REF
+LEG_ARROW["➡️ Thick Arrow (3px)<br/>Critical paths"]:::artifact
+end
+
+TITLE -.-> LEGEND
+
+%% =====================================================
+%% MAIN CONTENT
+%% =====================================================
+
+AVAQ(["👥 AVAQ Strategic Team"]):::human
+
+subgraph LEGISLATIVE_PRE["📜 PRE_EVT — Policy Opportunity Detected"]
+direction TB
+PRE_EVT((Policy Opportunity<br/>Detected)):::PRIMARY
+PRE_SIGNAL_SCAN("Signal Scanning<br/>Industry · Courts · Agencies"):::system
+PRE_STAKEHOLDER_MAP["Stakeholder<br/>Landscape Map"]:::artifact
+PRE_EDU("Staff & Member<br/>Education"):::human
+PRE_CONCEPT["Concept Memo"]:::artifact
+end
+
+%% State transition to INTRO_EVT (future)
+INTRO_EVT((Bill Vehicle<br/>Identified<br/>NEXT STATE)):::PRIMARY
+
+%% PRE_EVT flow with thick arrows
+PRE_EVT -->|State Transition| PRE_SIGNAL_SCAN --> PRE_STAKEHOLDER_MAP --> PRE_EDU --> PRE_CONCEPT
+PRE_CONCEPT -->|Blocking Path| INTRO_EVT
+
+%% Human involvement
+AVAQ --> PRE_EDU
+AVAQ --> HR_PRE
+
+%% AI Services supporting PRE_EVT
+subgraph AI_SERVICES_PRE["🤖 AI Services — PRE_EVT Support"]
+direction TB
+AI_INGEST("🔍 Multi-Source<br/>Ingestion"):::SYSTEM_FLOW
+AI_RETRIEVE("🔎 Contextual<br/>Retrieval"):::SYSTEM_FLOW
+AI_FEATURES("📐 Feature<br/>Extraction"):::SYSTEM_FLOW
+AI_GENERATE("🧠 Draft & Strategy<br/>Generation"):::SYSTEM_FLOW
+AI_SCORE("📊 Impact & Risk<br/>Scoring"):::SYSTEM_FLOW
+end
+
+AI_INGEST --> AI_RETRIEVE --> AI_FEATURES --> AI_GENERATE --> AI_SCORE
+AI_GENERATE -.-> PRE_STAKEHOLDER_MAP
+AI_GENERATE -.-> PRE_CONCEPT
+
+%% Human Review Gate
+subgraph HUMAN_REVIEW_PRE["👤 Human Review — HR_PRE"]
+direction TB
+HR_PRE{Approve Concept<br/>Direction?}:::HUMAN_ACTION
+end
+
+PRE_CONCEPT --> HR_PRE --o|Blocking| INTRO_EVT
+
+%% Intelligence Agents (PRE_EVT scope)
+subgraph INTEL_AGENTS_PRE["🔍 Intelligence Agents — PRE_EVT"]
+direction TB
+INT_SIGNAL("📡 Signal Scan<br/>Agent"):::ai
+INT_STAKE("🗺️ Stakeholder Mapping<br/>Agent"):::ai
+INT_OPPOSE("🛑 Opposition Detection<br/>Agent"):::ai
+end
+
+INT_SIGNAL -.-> AI_INGEST
+INT_STAKE -.-> PRE_STAKEHOLDER_MAP
+INT_OPPOSE -.-> PRE_STAKEHOLDER_MAP
+
+%% Drafting Agents (PRE_EVT scope)
+subgraph DRAFT_AGENTS_PRE["🧠 Drafting Agents — PRE_EVT"]
+direction TB
+DR_MEMO("📄 Concept Memo<br/>Agent"):::ai
+end
+
+DR_MEMO --> PRE_CONCEPT
+DR_MEMO -.-> HR_PRE
+
+%% External Reality triggers
+subgraph REALITY_PRE["🌍 External Reality — PRE_EVT Triggers"]
+direction TB
+REAL_ELECT((🗳️ Elections)):::system
+REAL_COURT((⚖️ Court Rulings)):::system
+REAL_AGENCY((🏛️ Agency Actions)):::system
+REAL_MARKET((🏭 Industry Behavior)):::system
+end
+
+REAL_ELECT -.-> PRE_EVT
+REAL_COURT -.-> PRE_EVT
+REAL_AGENCY -.-> PRE_EVT
+REAL_MARKET -.-> PRE_EVT
+
+%% Professional Context
+subgraph PROF_CONTEXT_PRE["🧠 Professional Context — PRE_EVT"]
+direction TB
+PRO_CONTEXT["📦 Professional Context<br/>Packets<br/>Precedent · Norms"]:::artifact
+GUIDANCE["📑 Signed Guidance<br/>& Constraints"]:::artifact
+end
+
+PRO_CONTEXT -.-> PRE_SIGNAL_SCAN
+PRO_CONTEXT -.-> PRE_STAKEHOLDER_MAP
+PRO_CONTEXT -.-> PRE_CONCEPT
+GUIDANCE ==> AI_GENERATE
+
+%% Memory & Learning (context)
+subgraph MEMORY_PRE["🗄️ Memory — PRE_EVT Context"]
+direction TB
+MEM_EVIDENCE[(🗄️ Evidence<br/>Store)]:::DATA
+end
+
+AI_SCORE --> MEM_EVIDENCE
+
+%% =====================================================
+%% IMPROVED STYLING CLASSES
+%% =====================================================
+
+%% Primary (States - High emphasis)
+classDef PRIMARY fill:#1E40AF,stroke:#1E3A8A,stroke-width:3px,color:#FFFFFF,font-weight:bold,font-size:14px
+
+%% Human Actions (Review Gates - Urgent attention)
+classDef HUMAN_ACTION fill:#FEE2E2,stroke:#DC2626,stroke-width:4px,color:#000000,font-weight:bold,font-size:13px
+
+%% System Flow (AI Services, Execution - Active processes)
+classDef SYSTEM_FLOW fill:#DBEAFE,stroke:#2563EB,stroke-width:2.5px,color:#000000,font-size:12px
+
+%% Context Reference (Memory, Learning - Background)
+classDef CONTEXT_REF fill:#F3F4F6,stroke:#6B7280,stroke-width:1.5px,stroke-dasharray:5 5,color:#4B5563,font-size:11px,font-style:italic
+
+%% Artifacts (Documents, Outputs)
+classDef artifact fill:#E0E7FF,stroke:#6366F1,stroke-width:2px,color:#000000,font-size:12px
+
+%% Data Stores
+classDef DATA fill:#FEF3C7,stroke:#F59E0B,stroke-width:2px,color:#000000,font-size:11px
+
+%% Legacy classes (for compatibility)
+classDef human fill:#E0F2FE,stroke:#0369A1,stroke-width:2px
+classDef ai fill:#F3E8FF,stroke:#7C3AED,stroke-width:2px
+classDef system fill:#ECFDF5,stroke:#047857,stroke-width:2px
+classDef decision fill:#FEE2E2,stroke:#991B1B,stroke-width:2px
+classDef title fill:#FFFFFF,stroke:#000000,stroke-width:2px,font-weight:bold,font-size:16px
+
+%% Apply improved styling
+class PRE_EVT,INTRO_EVT PRIMARY
+class HR_PRE HUMAN_ACTION
+class AI_INGEST,AI_RETRIEVE,AI_FEATURES,AI_GENERATE,AI_SCORE SYSTEM_FLOW
+class MEMORY_PRE,REALITY_PRE,MEM_EVIDENCE CONTEXT_REF
+class PRE_STAKEHOLDER_MAP,PRE_CONCEPT,PRO_CONTEXT,GUIDANCE artifact
+class MEM_EVIDENCE DATA
+
+%% Thick arrows for critical paths
+linkStyle 0 stroke:#000000,stroke-width:3px
+linkStyle 1 stroke:#000000,stroke-width:3px

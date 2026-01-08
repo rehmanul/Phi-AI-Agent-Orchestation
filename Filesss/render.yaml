@@ -1,0 +1,25 @@
+# Render.com Configuration for Live Dashboard
+# 
+# Phase 6: Render.com Deploy
+#
+# This configuration deploys the live dashboard as a static site on Render.com
+
+services:
+  - type: web
+    name: agent-orchestrator-dashboard
+    env: static
+    buildCommand: ""  # No build needed - pure HTML/CSS/JS
+    staticPublishPath: ./dashboard
+    envVars:
+      - key: API_BASE_URL
+        value: ""  # Leave empty for file-based fallback, or set to API URL
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
+      - path: /*
+        name: Pragma
+        value: no-cache
+      - path: /*
+        name: Expires
+        value: "0"

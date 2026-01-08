@@ -1,0 +1,167 @@
+---
+config:
+  layout: dagre
+  elk:
+    nodePlacementStrategy: NETWORK_SIMPLEX
+    mergeEdges: true
+    padding: 32
+---
+flowchart TB
+
+%% =====================================================
+%% IMPL_EVT OPERATOR VIEW — STATE-SPECIFIC FOCUS
+%% Purpose: Show only IMPL_EVT-relevant actions/processes
+%% Master Reference: .userInput/agent orchestrator 1.6.mmd
+%% =====================================================
+
+%% =====================================================
+%% TITLE & LEGEND (TOP)
+%% =====================================================
+
+TITLE["📊 IMPL_EVT Operator View<br/>Law Enacted<br/><small>Master Reference: agent orchestrator 1.6.mmd</small>"]:::title
+
+subgraph LEGEND["📖 Visual Semantics"]
+direction LR
+LEG_HUMAN["✋ HUMAN_ACTION<br/>Human decisions required"]:::HUMAN_ACTION
+LEG_SYSTEM["⚙️ SYSTEM_FLOW<br/>System running"]:::SYSTEM_FLOW
+LEG_CONTEXT["◻ CONTEXT_REF<br/>Reference / context"]:::CONTEXT_REF
+LEG_ARROW["➡️ Thick Arrow (3px)<br/>Critical paths"]:::artifact
+end
+
+TITLE -.-> LEGEND
+
+%% =====================================================
+%% MAIN CONTENT
+%% =====================================================
+
+AVAQ(["👥 AVAQ Strategic Team"]):::human
+
+subgraph LEGISLATIVE_IMPL["📜 IMPL_EVT — Law Enacted"]
+direction TB
+IMPL_EVT((Law Enacted)):::system
+IMPL_GUIDE["Implementation Guidance"]:::artifact
+IMPL_OVERSIGHT("Oversight & Compliance Prep"):::human
+IMPL_OUTCOME["Outcome & Impact Report"]:::artifact
+end
+
+%% State transition from FINAL_EVT
+FINAL_EVT((FINAL_EVT<br/>PREVIOUS STATE)):::decision
+
+FINAL_EVT -->|State Transition| IMPL_EVT
+IMPL_EVT --> IMPL_GUIDE --> IMPL_OVERSIGHT --> IMPL_OUTCOME
+
+%% Human involvement
+AVAQ --> IMPL_OVERSIGHT
+
+%% AI Services supporting IMPL_EVT
+subgraph AI_SERVICES_IMPL["🤖 AI Services — IMPL_EVT Support"]
+direction TB
+AI_GENERATE("🧠 Draft & Strategy Generation"):::ai
+end
+
+AI_GENERATE -.-> IMPL_GUIDE
+
+%% Execution Loop (post-enactment)
+subgraph EXECUTION_LOOP_IMPL["🔄 Execution Loop — IMPL_EVT"]
+direction TB
+EXEC_STRATEGY("🧠 Strategy Decomposition<br/>Post-Enactment Planning"):::ai
+EXEC_TACTICS("🎯 Tactical Planning<br/>Implementation Support"):::ai
+EXEC_RUN("⚙️ Tactic Execution Engine<br/>Oversight & Monitoring"):::system
+EXEC_MONITOR("📡 Live Monitoring<br/>Compliance Tracking"):::system
+end
+
+IMPL_OUTCOME --> EXEC_STRATEGY
+EXEC_STRATEGY --> EXEC_TACTICS --> EXEC_RUN --> EXEC_MONITOR
+
+%% Memory & Learning (primary focus)
+subgraph MEMORY_IMPL["🗄️ Memory — IMPL_EVT"]
+direction TB
+MEM_OUTCOMES[(📈 Legislative Outcomes)]:::data
+MEM_TACTICS[(📊 Tactic Performance History)]:::data
+MEM_NARRATIVE[(🗣️ Narrative Effectiveness Log)]:::data
+MEM_EVIDENCE[(🗄️ Evidence Store)]:::data
+end
+
+IMPL_OUTCOME --> MEM_OUTCOMES
+EXEC_MONITOR --> MEM_TACTICS
+EXEC_MONITOR --> MEM_NARRATIVE
+
+%% Learning Agents (primary focus in IMPL_EVT)
+subgraph LEARN_AGENTS_IMPL["📐 Learning Agents — IMPL_EVT"]
+direction TB
+LEARN_CAUSAL("📐 Causal Attribution Engine"):::ai
+LEARN_UPDATE("🔁 Strategy Reweighting"):::ai
+LR_TACTIC("📊 Tactic Performance Learner"):::ai
+LR_NARR("🗣️ Narrative Effectiveness Learner"):::ai
+LR_ATTRIB("📈 Outcome Attribution Agent"):::ai
+end
+
+MEM_EVIDENCE --> LEARN_CAUSAL
+MEM_OUTCOMES --> LEARN_CAUSAL
+MEM_TACTICS --> LEARN_CAUSAL
+MEM_NARRATIVE --> LEARN_CAUSAL
+
+LEARN_CAUSAL --> LEARN_UPDATE
+
+LR_TACTIC --> MEM_TACTICS
+LR_NARR --> MEM_NARRATIVE
+LR_ATTRIB --> MEM_OUTCOMES
+
+%% Professional Context (post-enactment review)
+subgraph PROF_CONTEXT_IMPL["🧠 Professional Context — IMPL_EVT"]
+direction TB
+PRO_CONTEXT["📦 Professional Context Packets<br/>Lessons Learned"]:::artifact
+AUDIT[(🧾 Audit & Rationale Log<br/>Post-Enactment Review)]:::data
+end
+
+IMPL_OUTCOME --> AUDIT
+LEARN_CAUSAL -.-> PRO_CONTEXT
+
+%% Styling Classes
+classDef human fill:#E0F2FE,stroke:#0369A1,stroke-width:2px
+classDef ai fill:#F3E8FF,stroke:#7C3AED,stroke-width:2px
+classDef system fill:#ECFDF5,stroke:#047857,stroke-width:2px
+classDef artifact fill:#DBEAFE,stroke:#1E40AF,stroke-width:2px
+classDef data fill:#FEF9C3,stroke:#CA8A04,stroke-width:2px
+classDef decision fill:#FEE2E2,stroke:#991B1B,stroke-width:2px
+
+%% =====================================================
+%% IMPROVED STYLING CLASSES (HIGH CONTRAST)
+%% =====================================================
+
+%% Primary (States - High emphasis)
+classDef PRIMARY fill:#1E40AF,stroke:#1E3A8A,stroke-width:3px,color:#FFFFFF,font-weight:bold,font-size:14px
+
+%% Human Actions (Review Gates - Urgent attention)
+classDef HUMAN_ACTION fill:#FEE2E2,stroke:#DC2626,stroke-width:4px,color:#000000,font-weight:bold,font-size:13px
+
+%% System Flow (AI Services, Execution - Active processes)
+classDef SYSTEM_FLOW fill:#DBEAFE,stroke:#2563EB,stroke-width:2.5px,color:#000000,font-size:12px
+
+%% Context Reference (Memory, Learning - Background)
+classDef CONTEXT_REF fill:#F3F4F6,stroke:#6B7280,stroke-width:1.5px,stroke-dasharray:5 5,color:#4B5563,font-size:11px,font-style:italic
+
+%% Artifacts (Documents, Outputs)
+classDef artifact fill:#E0E7FF,stroke:#6366F1,stroke-width:2px,color:#000000,font-size:12px
+
+%% Data Stores
+classDef DATA fill:#FEF3C7,stroke:#F59E0B,stroke-width:2px,color:#000000,font-size:11px
+
+%% Legacy classes (for compatibility)
+classDef human fill:#E0F2FE,stroke:#0369A1,stroke-width:2px
+classDef ai fill:#F3E8FF,stroke:#7C3AED,stroke-width:2px
+classDef system fill:#ECFDF5,stroke:#047857,stroke-width:2px
+classDef decision fill:#FEE2E2,stroke:#991B1B,stroke-width:2px
+classDef title fill:#FFFFFF,stroke:#000000,stroke-width:2px,font-weight:bold,font-size:16px
+
+%% Apply improved styling
+class IMPL_EVT PRIMARY
+class IMPL_OVERSIGHT,FINAL_EVT HUMAN_ACTION
+class AI_GENERATE,EXEC_STRATEGY,EXEC_TACTICS,EXEC_RUN,EXEC_MONITOR SYSTEM_FLOW
+class MEMORY_IMPL,MEM_OUTCOMES,MEM_TACTICS,MEM_NARRATIVE,MEM_EVIDENCE,PROF_CONTEXT_IMPL,AUDIT CONTEXT_REF
+class IMPL_GUIDE,IMPL_OUTCOME,PRO_CONTEXT artifact
+class MEM_OUTCOMES,MEM_TACTICS,MEM_NARRATIVE,MEM_EVIDENCE,AUDIT DATA
+
+%% Thick arrows for state transitions
+linkStyle 0 stroke:#000000,stroke-width:3px
+linkStyle 1 stroke:#000000,stroke-width:3px

@@ -1,0 +1,474 @@
+{
+  "_meta": {
+    "generated_at": "2026-01-07T12:19:13.890804Z",
+    "master_diagram": ".userInput/agent orchestrator 1.6.mmd",
+    "report_version": "1.0.0"
+  },
+  "alignment_check": {
+    "_meta": {
+      "validation_timestamp": "2026-01-07T12:19:13.783288Z",
+      "master_diagram": ".userInput/agent orchestrator 1.6.mmd",
+      "validator_version": "1.0.0"
+    },
+    "checks": [
+      {
+        "check": "legislative_state_machine",
+        "status": "PASS",
+        "details": {
+          "expected_states": [
+            "PRE_EVT",
+            "INTRO_EVT",
+            "COMM_EVT",
+            "FLOOR_EVT",
+            "FINAL_EVT",
+            "IMPL_EVT"
+          ],
+          "found_states": [
+            "PRE_EVT",
+            "INTRO_EVT",
+            "COMM_EVT",
+            "FLOOR_EVT",
+            "FINAL_EVT",
+            "IMPL_EVT"
+          ],
+          "missing_states": [],
+          "current_state": "INTRO_EVT"
+        },
+        "issues": []
+      },
+      {
+        "check": "review_gates",
+        "status": "PASS",
+        "details": {
+          "expected_gates": [
+            "HR_PRE",
+            "HR_LANG",
+            "HR_MSG",
+            "HR_RELEASE"
+          ],
+          "found_gates": [
+            "HR_PRE",
+            "HR_LANG",
+            "HR_MSG",
+            "HR_RELEASE"
+          ],
+          "missing_gates": []
+        },
+        "issues": []
+      },
+      {
+        "check": "agent_types",
+        "status": "WARN",
+        "details": {
+          "expected_types": [
+            "Intelligence",
+            "Drafting",
+            "Execution",
+            "Learning"
+          ],
+          "found_types": [
+            "Drafting",
+            "Intelligence",
+            "Execution"
+          ],
+          "missing_types": [
+            "Learning"
+          ],
+          "agent_count": 21
+        },
+        "issues": [
+          "Missing agent types: Learning"
+        ]
+      },
+      {
+        "check": "ai_service_layer",
+        "status": "PASS",
+        "details": {
+          "expected_files": [
+            "main.py",
+            "routes.py"
+          ],
+          "found_files": [
+            "main.py",
+            "routes.py"
+          ],
+          "execution_routes": true
+        },
+        "issues": []
+      },
+      {
+        "check": "memory_learning_systems",
+        "status": "WARN",
+        "details": {
+          "audit_log": true,
+          "agent_registry": true,
+          "learning_agent_count": 0
+        },
+        "issues": [
+          "No learning agents found"
+        ]
+      },
+      {
+        "check": "execution_loop",
+        "status": "PASS",
+        "details": {
+          "execution_directory": true,
+          "execution_files": 12,
+          "execution_agent_count": 4
+        },
+        "issues": []
+      }
+    ],
+    "summary": {
+      "total_checks": 6,
+      "passed": 4,
+      "warnings": 2,
+      "failed": 0
+    }
+  },
+  "diagram_references": {
+    "_meta": {
+      "validation_timestamp": "2026-01-07T12:19:13.797251Z",
+      "master_diagram": ".userInput/agent orchestrator 1.6.mmd",
+      "validator_version": "1.0.0"
+    },
+    "diagrams": [
+      {
+        "path": "ALIGNMENT_VISUALIZATION.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "diagrams\\INTRO_FRAME.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "diagrams\\INTRO_FRAME_mermaid.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "diagrams\\INTRO_WHITEPAPER.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "execution\\EXECUTION_COMPLETE.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "execution\\EXECUTION_FLOW.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "execution\\NEXT_STEPS.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "execution\\PHASE3_COMPLETE.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "execution\\PHASE3_EXECUTION_VERIFIED.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "execution\\PHASE3_SYSTEM_CONTEXT.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "execution\\SYSTEM_CONTEXT.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "monitoring\\dashboard-status.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "monitoring\\DASHBOARD_SYSTEM_CONTEXT.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "monitoring\\timeline-chart.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "artifacts\\intro_evt\\FUTURE_STATE_TRANSITIONS.mmd",
+        "has_reference": true,
+        "reference_type": "pattern_match",
+        "issues": []
+      },
+      {
+        "path": "artifacts\\policy\\diagrams\\90_day_timeline.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "artifacts\\policy\\diagrams\\agent_integration_flow.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "artifacts\\policy\\diagrams\\clear_ask_decision_tree.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "artifacts\\policy\\diagrams\\completion_status.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "artifacts\\policy\\diagrams\\comprehensive_overview.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "artifacts\\policy\\diagrams\\execution_paths_flowchart.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "artifacts\\policy\\diagrams\\master_dashboard.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "artifacts\\policy\\diagrams\\section_priority_map.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "artifacts\\policy\\diagrams\\section_to_ask_flow.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "artifacts\\policy\\diagrams\\stakeholder_hierarchy.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      },
+      {
+        "path": "artifacts\\policy\\diagrams\\system_context.mmd",
+        "has_reference": true,
+        "reference_type": "comment",
+        "issues": []
+      }
+    ],
+    "summary": {
+      "total_diagrams": 26,
+      "with_reference": 26,
+      "missing_reference": 0,
+      "errors": 0
+    }
+  },
+  "component_mapping": {
+    "_meta": {
+      "validation_timestamp": "2026-01-07T12:19:13.872851Z",
+      "master_diagram": ".userInput/agent orchestrator 1.6.mmd",
+      "validator_version": "1.0.0"
+    },
+    "mappings": [
+      {
+        "component": "legislative_spine",
+        "status": "PASS",
+        "mappings": [
+          {
+            "diagram_element": "Legislative State Machine",
+            "code_location": "state/legislative-state.json",
+            "implementation": "Current state: INTRO_EVT",
+            "status": "FOUND"
+          },
+          {
+            "diagram_element": "State Machine Definition",
+            "code_location": "AUTHORITATIVE_INVARIANTS.md",
+            "implementation": "State definitions and transitions",
+            "status": "FOUND"
+          }
+        ],
+        "issues": []
+      },
+      {
+        "component": "agent_types",
+        "status": "WARN",
+        "mappings": [
+          {
+            "diagram_element": "Intelligence Agents",
+            "code_location": "agents/intelligence_*.py",
+            "implementation": "9 agent files found",
+            "status": "FOUND"
+          },
+          {
+            "diagram_element": "Drafting Agents",
+            "code_location": "agents/drafting_*.py",
+            "implementation": "7 agent files found",
+            "status": "FOUND"
+          },
+          {
+            "diagram_element": "Execution Agents",
+            "code_location": "agents/execution_*.py",
+            "implementation": "4 agent files found",
+            "status": "FOUND"
+          },
+          {
+            "diagram_element": "Learning Agents",
+            "code_location": "agents/learning_*.py",
+            "implementation": "0 agent files found",
+            "status": "MISSING"
+          }
+        ],
+        "issues": [
+          "No Learning agents found"
+        ]
+      },
+      {
+        "component": "human_review_gates",
+        "status": "PASS",
+        "mappings": [
+          {
+            "diagram_element": "HR_PRE Review Gate",
+            "code_location": "review/HR_PRE_queue.json",
+            "implementation": "Review queue file",
+            "status": "FOUND"
+          },
+          {
+            "diagram_element": "HR_LANG Review Gate",
+            "code_location": "review/HR_LANG_queue.json",
+            "implementation": "Review queue file",
+            "status": "FOUND"
+          },
+          {
+            "diagram_element": "HR_MSG Review Gate",
+            "code_location": "review/HR_MSG_queue.json",
+            "implementation": "Review queue file",
+            "status": "FOUND"
+          },
+          {
+            "diagram_element": "HR_RELEASE Review Gate",
+            "code_location": "review/HR_RELEASE_queue.json",
+            "implementation": "Review queue file",
+            "status": "FOUND"
+          }
+        ],
+        "issues": []
+      },
+      {
+        "component": "ai_service_layer",
+        "status": "PASS",
+        "mappings": [
+          {
+            "diagram_element": "AI Service Layer",
+            "code_location": "app/main.py",
+            "implementation": "Main API application",
+            "status": "FOUND"
+          },
+          {
+            "diagram_element": "AI Service Layer",
+            "code_location": "app/routes.py",
+            "implementation": "Core API routes",
+            "status": "FOUND"
+          },
+          {
+            "diagram_element": "AI Service Layer",
+            "code_location": "app/execution_routes.py",
+            "implementation": "Execution API routes",
+            "status": "FOUND"
+          },
+          {
+            "diagram_element": "AI Service Layer",
+            "code_location": "app/policy_routes.py",
+            "implementation": "Policy artifact routes",
+            "status": "FOUND"
+          }
+        ],
+        "issues": []
+      },
+      {
+        "component": "memory_learning",
+        "status": "PASS",
+        "mappings": [
+          {
+            "diagram_element": "Evidence Store",
+            "code_location": "audit/audit-log.jsonl",
+            "implementation": "Audit log for evidence tracking",
+            "status": "FOUND"
+          },
+          {
+            "diagram_element": "Tactic Performance History",
+            "code_location": "registry/agent-registry.json",
+            "implementation": "Agent registry for performance tracking",
+            "status": "FOUND"
+          }
+        ],
+        "issues": []
+      },
+      {
+        "component": "execution_loop",
+        "status": "PASS",
+        "mappings": [
+          {
+            "diagram_element": "Execution Loop",
+            "code_location": "execution/",
+            "implementation": "12 execution files",
+            "status": "FOUND"
+          },
+          {
+            "diagram_element": "Tactic Execution Engine",
+            "code_location": "agents/execution_*.py",
+            "implementation": "4 execution agents",
+            "status": "FOUND"
+          }
+        ],
+        "issues": []
+      }
+    ],
+    "summary": {
+      "total_components": 6,
+      "mapped": 5,
+      "warnings": 1,
+      "failures": 0
+    }
+  },
+  "overall_summary": {
+    "status": "WARN",
+    "total_checks": 12,
+    "passed": 9,
+    "warnings": 3,
+    "failed": 0
+  }
+}

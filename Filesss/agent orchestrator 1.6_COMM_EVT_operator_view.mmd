@@ -1,0 +1,186 @@
+---
+config:
+  layout: dagre
+  elk:
+    nodePlacementStrategy: NETWORK_SIMPLEX
+    mergeEdges: true
+    padding: 32
+---
+flowchart TB
+
+%% =====================================================
+%% COMM_EVT OPERATOR VIEW — STATE-SPECIFIC FOCUS
+%% Purpose: Show only COMM_EVT-relevant actions/processes
+%% Master Reference: .userInput/agent orchestrator 1.6.mmd
+%% =====================================================
+
+%% =====================================================
+%% TITLE & LEGEND (TOP)
+%% =====================================================
+
+TITLE["📊 COMM_EVT Operator View<br/>Committee Referral<br/><small>Master Reference: agent orchestrator 1.6.mmd</small>"]:::title
+
+subgraph LEGEND["📖 Visual Semantics"]
+direction LR
+LEG_HUMAN["✋ HUMAN_ACTION<br/>Human decisions required"]:::HUMAN_ACTION
+LEG_SYSTEM["⚙️ SYSTEM_FLOW<br/>System running"]:::SYSTEM_FLOW
+LEG_CONTEXT["◻ CONTEXT_REF<br/>Reference / context"]:::CONTEXT_REF
+LEG_ARROW["➡️ Thick Arrow (3px)<br/>Critical paths"]:::artifact
+end
+
+TITLE -.-> LEGEND
+
+%% =====================================================
+%% MAIN CONTENT
+%% =====================================================
+
+AVAQ(["👥 AVAQ Strategic Team"]):::human
+
+subgraph LEGISLATIVE_COMM["📜 COMM_EVT — Committee Referral"]
+direction TB
+COMM_EVT((Committee Referral)):::system
+COMM_AGENDA("Agenda & Member Analysis"):::human
+COMM_BRIEFS["Committee Briefing Packets"]:::artifact
+COMM_LANG["Draft Legislative Language"]:::artifact
+COMM_AMEND["Amendment Strategy"]:::artifact
+end
+
+%% State transitions
+PRE_EVT((PRE_EVT<br/>PREVIOUS STATE)):::system
+FLOOR_EVT((Floor Scheduled<br/>NEXT STATE)):::system
+
+PRE_EVT -->|State Transition| COMM_EVT
+COMM_EVT --> COMM_AGENDA --> COMM_BRIEFS --> COMM_LANG --> COMM_AMEND -->|State Transition| FLOOR_EVT
+
+%% Human involvement
+AVAQ --> COMM_AGENDA
+AVAQ --> HR_LANG
+
+%% AI Services supporting COMM_EVT
+subgraph AI_SERVICES_COMM["🤖 AI Services — COMM_EVT Support"]
+direction TB
+AI_GENERATE("🧠 Draft & Strategy<br/>Generation"):::SYSTEM_FLOW
+AI_SCORE("📊 Impact & Risk<br/>Scoring"):::SYSTEM_FLOW
+end
+
+AI_GENERATE -.-> COMM_BRIEFS
+AI_GENERATE -.-> COMM_LANG
+AI_GENERATE -.-> COMM_AMEND
+
+%% Human Review Gate
+subgraph HUMAN_REVIEW_COMM["👤 Human Review — HR_LANG"]
+direction TB
+HR_LANG{Approve Legislative Language?}:::decision
+end
+
+COMM_LANG --> HR_LANG --o|Blocking| FLOOR_EVT
+COMM_AMEND -.-> HR_LANG
+
+%% Drafting Agents (COMM_EVT scope)
+subgraph DRAFT_AGENTS_COMM["🧠 Drafting Agents — COMM_EVT"]
+direction TB
+DR_LANG("📜 Legislative Language Agent"):::ai
+DR_AMEND("✏️ Amendment Strategy Agent"):::ai
+end
+
+DR_LANG --> COMM_LANG
+DR_AMEND --> COMM_AMEND
+DR_LANG -.-> HR_LANG
+DR_AMEND -.-> HR_LANG
+
+%% Execution Agents (COMM_EVT scope)
+subgraph EXEC_AGENTS_COMM["⚙️ Execution Agents — COMM_EVT"]
+direction TB
+EX_OUTREACH("📨 Outreach Execution Agent"):::ai
+EX_COAL("🤝 Coalition Activation Agent"):::ai
+end
+
+EX_OUTREACH --> EXEC_RUN
+EX_COAL --> EXEC_RUN
+
+%% Execution Loop
+subgraph EXECUTION_LOOP_COMM["🔄 Execution Loop — COMM_EVT"]
+direction TB
+EXEC_STRATEGY("🧠 Strategy<br/>Decomposition"):::SYSTEM_FLOW
+EXEC_TACTICS("🎯 Tactical<br/>Planning"):::SYSTEM_FLOW
+EXEC_RUN("⚙️ Tactic Execution<br/>Engine"):::SYSTEM_FLOW
+EXEC_MONITOR("📡 Live<br/>Monitoring"):::SYSTEM_FLOW
+EXEC_RETUNE("🔁 Tactical<br/>Retuning"):::SYSTEM_FLOW
+end
+
+EXEC_STRATEGY --> EXEC_TACTICS --> EXEC_RUN --> EXEC_MONITOR --> EXEC_RETUNE
+
+%% Campaign Operations
+subgraph CAMPAIGN_OPS_COMM["🔥 Campaign Operations — COMM_EVT"]
+direction TB
+THREAD_COMMITTEE("🧵 Committee Outreach Wave"):::system
+THREAD_COALITION("🧵 Coalition Expansion Sprint"):::system
+end
+
+EXEC_RUN --> THREAD_COMMITTEE
+EXEC_RUN --> THREAD_COALITION
+
+%% Professional Context
+subgraph PROF_CONTEXT_COMM["🧠 Professional Context — COMM_EVT"]
+direction TB
+PRO_CONTEXT["📦 Professional Context Packets"]:::artifact
+GUIDANCE["📑 Signed Guidance & Constraints"]:::artifact
+AUDIT[(🧾 Audit & Rationale Log)]:::data
+end
+
+GUIDANCE ==> AI_GENERATE
+GUIDANCE ==> AI_SCORE
+AI_GENERATE --> AUDIT
+AI_SCORE --> AUDIT
+
+%% Memory & Learning
+subgraph MEMORY_COMM["🗄️ Memory — COMM_EVT"]
+direction TB
+MEM_TACTICS[(📊 Tactic Performance<br/>History)]:::DATA
+MEM_EVIDENCE[(🗄️ Evidence<br/>Store)]:::DATA
+end
+
+COMM_AMEND --> MEM_TACTICS
+AI_SCORE --> MEM_EVIDENCE
+EXEC_RETUNE -.-> MEM_TACTICS
+
+%% =====================================================
+%% IMPROVED STYLING CLASSES (HIGH CONTRAST)
+%% =====================================================
+
+%% Primary (States - High emphasis)
+classDef PRIMARY fill:#1E40AF,stroke:#1E3A8A,stroke-width:3px,color:#FFFFFF,font-weight:bold,font-size:14px
+
+%% Human Actions (Review Gates - Urgent attention)
+classDef HUMAN_ACTION fill:#FEE2E2,stroke:#DC2626,stroke-width:4px,color:#000000,font-weight:bold,font-size:13px
+
+%% System Flow (AI Services, Execution - Active processes)
+classDef SYSTEM_FLOW fill:#DBEAFE,stroke:#2563EB,stroke-width:2.5px,color:#000000,font-size:12px
+
+%% Context Reference (Memory, Learning - Background)
+classDef CONTEXT_REF fill:#F3F4F6,stroke:#6B7280,stroke-width:1.5px,stroke-dasharray:5 5,color:#4B5563,font-size:11px,font-style:italic
+
+%% Artifacts (Documents, Outputs)
+classDef artifact fill:#E0E7FF,stroke:#6366F1,stroke-width:2px,color:#000000,font-size:12px
+
+%% Data Stores
+classDef DATA fill:#FEF3C7,stroke:#F59E0B,stroke-width:2px,color:#000000,font-size:11px
+
+%% Legacy classes (for compatibility)
+classDef human fill:#E0F2FE,stroke:#0369A1,stroke-width:2px
+classDef ai fill:#F3E8FF,stroke:#7C3AED,stroke-width:2px
+classDef system fill:#ECFDF5,stroke:#047857,stroke-width:2px
+classDef decision fill:#FEE2E2,stroke:#991B1B,stroke-width:2px
+classDef title fill:#FFFFFF,stroke:#000000,stroke-width:2px,font-weight:bold,font-size:16px
+
+%% Apply improved styling
+class COMM_EVT,PRE_EVT,FLOOR_EVT PRIMARY
+class HR_LANG HUMAN_ACTION
+class AI_GENERATE,AI_SCORE,EXEC_STRATEGY,EXEC_TACTICS,EXEC_RUN,EXEC_MONITOR,EXEC_RETUNE SYSTEM_FLOW
+class MEMORY_COMM,MEM_TACTICS,MEM_EVIDENCE CONTEXT_REF
+class COMM_BRIEFS,COMM_LANG,COMM_AMEND,PRO_CONTEXT,GUIDANCE artifact
+class MEM_TACTICS,MEM_EVIDENCE,AUDIT DATA
+
+%% Thick arrows for state transitions
+linkStyle 0 stroke:#000000,stroke-width:3px
+linkStyle 1 stroke:#000000,stroke-width:3px
