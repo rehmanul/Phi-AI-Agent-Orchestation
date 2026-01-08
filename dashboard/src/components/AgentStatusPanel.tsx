@@ -31,6 +31,7 @@ const agents = [
 export default function AgentStatusPanel() {
     const [statuses, setStatuses] = useState<Record<string, AgentStatus>>({});
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
 
     useEffect(() => {
         fetchStatuses();
@@ -44,14 +45,12 @@ export default function AgentStatusPanel() {
             if (res.ok) {
                 const data = await res.json();
                 setStatuses(data);
+                setError(false);
+            } else {
+                setError(true);
             }
-        } catch (error) {
-            // Use mock data if API not available
-            const mock: Record<string, AgentStatus> = {};
-            agents.forEach(a => {
-                mock[a.id] = { status: 'running', last_activity: null };
-            });
-            setStatuses(mock);
+        } catch (err) {
+            setError(true);
         } finally {
             setLoading(false);
         }
@@ -82,9 +81,16 @@ export default function AgentStatusPanel() {
                 </button>
             </div>
 
+            {error && (
+                <p className="text-xs text-yellow-400 mb-4">
+                    Unable to connect to agent status API
+                </p>
+            )}
+
             <div className="space-y-3">
                 {agents.map((agent) => {
-                    const status = statuses[agent.id]?.status || 'unknown';
+                    const agentStatus = statuses[agent.id];
+                    const status = agentStatus?.status || 'unknown';
                     return (
                         <div
                             key={agent.id}

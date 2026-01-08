@@ -19,6 +19,7 @@ interface ActivityData {
 export default function ActivityChart() {
     const [data, setData] = useState<ActivityData[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -29,26 +30,15 @@ export default function ActivityChart() {
             const res = await fetch('/api/metrics/timeline?metric_type=distribution&hours=24&interval_minutes=60');
             if (res.ok) {
                 const result = await res.json();
-                setData(result.data || generateMockData());
+                setData(result.data || []);
             } else {
-                setData(generateMockData());
+                setError(true);
             }
-        } catch (error) {
-            setData(generateMockData());
+        } catch (err) {
+            setError(true);
         } finally {
             setLoading(false);
         }
-    };
-
-    const generateMockData = (): ActivityData[] => {
-        const now = new Date();
-        return Array.from({ length: 24 }, (_, i) => {
-            const timestamp = new Date(now.getTime() - (23 - i) * 60 * 60 * 1000);
-            return {
-                timestamp: timestamp.toISOString(),
-                value: Math.floor(Math.random() * 50) + 10,
-            };
-        });
     };
 
     const formatTime = (timestamp: string) => {
@@ -73,6 +63,10 @@ export default function ActivityChart() {
 
             {loading ? (
                 <div className="h-64 bg-[var(--card-hover)] rounded-lg animate-pulse" />
+            ) : data.length === 0 ? (
+                <div className="h-64 flex items-center justify-center text-[var(--muted)]">
+                    <p>No activity data available. Data will appear as agents process events.</p>
+                </div>
             ) : (
                 <ResponsiveContainer width="100%" height={250}>
                     <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
