@@ -13,10 +13,12 @@ import {
     BarChart3,
     Settings,
     Zap,
+    Upload,
 } from 'lucide-react';
 
 const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+    { name: 'Documents', href: '/documents', icon: Upload },
     { name: 'Intelligence', href: '/intelligence', icon: Radio },
     { name: 'Campaigns', href: '/campaigns', icon: Zap },
     { name: 'Legislators', href: '/legislators', icon: Users },
