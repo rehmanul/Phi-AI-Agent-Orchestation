@@ -1,0 +1,353 @@
+# Render Blueprint for AI Agent Orchestration System
+# Deploy with: Connect this repo to Render and it will auto-detect this file
+# Docs: https://render.com/docs/infrastructure-as-code
+
+services:
+  # =============================================================================
+  # FastAPI Backend
+  # =============================================================================
+  - type: web
+    name: advocacy-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -e .
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: LOG_LEVEL
+        value: INFO
+      # Database
+      - key: POSTGRES_DSN
+        fromDatabase:
+          name: advocacy-db
+          property: connectionString
+      - key: REDIS_DSN
+        fromService:
+          name: advocacy-redis
+          type: redis
+          property: connectionString
+      # LLM Keys (set in Render dashboard)
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: LLM_PROVIDER
+        value: openai
+      # External APIs (set in Render dashboard)
+      - key: CONGRESS_API_KEY
+        sync: false
+      - key: TWITTER_BEARER_TOKEN
+        sync: false
+      - key: REDDIT_CLIENT_ID
+        sync: false
+      - key: REDDIT_CLIENT_SECRET
+        sync: false
+      - key: NEWS_API_KEY
+        sync: false
+      # Email/SMS (set in Render dashboard)
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: SENDGRID_FROM_EMAIL
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      # Kafka (using Upstash or external Kafka)
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        sync: false
+      # API Settings
+      - key: API_SECRET_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: "https://advocacy-dashboard.onrender.com"
+
+  # =============================================================================
+  # Next.js Dashboard
+  # =============================================================================
+  - type: web
+    name: advocacy-dashboard
+    runtime: node
+    plan: free
+    rootDir: dashboard
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: API_URL
+        fromService:
+          name: advocacy-api
+          type: web
+          property: host
+          envVarKey: API_URL
+
+  # =============================================================================
+  # AI Agent Workers (Background Workers)
+  # =============================================================================
+  
+  # Monitoring Agent
+  - type: worker
+    name: agent-monitoring
+    runtime: python
+    plan: free
+    buildCommand: pip install -e .
+    startCommand: python -m agents.monitoring.main
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: AGENT_TYPE
+        value: monitoring
+      - key: POSTGRES_DSN
+        fromDatabase:
+          name: advocacy-db
+          property: connectionString
+      - key: REDIS_DSN
+        fromService:
+          name: advocacy-redis
+          type: redis
+          property: connectionString
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: CONGRESS_API_KEY
+        sync: false
+      - key: TWITTER_BEARER_TOKEN
+        sync: false
+      - key: NEWS_API_KEY
+        sync: false
+      - key: MONITORING_LEGISLATIVE_INTERVAL
+        value: "3600"
+      - key: MONITORING_NEWS_INTERVAL
+        value: "1800"
+      - key: MONITORING_SOCIAL_INTERVAL
+        value: "900"
+
+  # Analysis Agent
+  - type: worker
+    name: agent-analysis
+    runtime: python
+    plan: free
+    buildCommand: pip install -e .
+    startCommand: python -m agents.analysis.main
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: AGENT_TYPE
+        value: analysis
+      - key: POSTGRES_DSN
+        fromDatabase:
+          name: advocacy-db
+          property: connectionString
+      - key: REDIS_DSN
+        fromService:
+          name: advocacy-redis
+          type: redis
+          property: connectionString
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+
+  # Strategy Agent
+  - type: worker
+    name: agent-strategy
+    runtime: python
+    plan: free
+    buildCommand: pip install -e .
+    startCommand: python -m agents.strategy.main
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: AGENT_TYPE
+        value: strategy
+      - key: POSTGRES_DSN
+        fromDatabase:
+          name: advocacy-db
+          property: connectionString
+      - key: REDIS_DSN
+        fromService:
+          name: advocacy-redis
+          type: redis
+          property: connectionString
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+
+  # Tactics Agent
+  - type: worker
+    name: agent-tactics
+    runtime: python
+    plan: free
+    buildCommand: pip install -e .
+    startCommand: python -m agents.tactics.main
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: AGENT_TYPE
+        value: tactics
+      - key: POSTGRES_DSN
+        fromDatabase:
+          name: advocacy-db
+          property: connectionString
+      - key: REDIS_DSN
+        fromService:
+          name: advocacy-redis
+          type: redis
+          property: connectionString
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+
+  # Content Agent
+  - type: worker
+    name: agent-content
+    runtime: python
+    plan: free
+    buildCommand: pip install -e .
+    startCommand: python -m agents.content.main
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: AGENT_TYPE
+        value: content
+      - key: POSTGRES_DSN
+        fromDatabase:
+          name: advocacy-db
+          property: connectionString
+      - key: REDIS_DSN
+        fromService:
+          name: advocacy-redis
+          type: redis
+          property: connectionString
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+
+  # Distribution Agent
+  - type: worker
+    name: agent-distribution
+    runtime: python
+    plan: free
+    buildCommand: pip install -e .
+    startCommand: python -m agents.distribution.main
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: AGENT_TYPE
+        value: distribution
+      - key: POSTGRES_DSN
+        fromDatabase:
+          name: advocacy-db
+          property: connectionString
+      - key: REDIS_DSN
+        fromService:
+          name: advocacy-redis
+          type: redis
+          property: connectionString
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        sync: false
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: SENDGRID_FROM_EMAIL
+        sync: false
+      - key: TWITTER_BEARER_TOKEN
+        sync: false
+
+  # Feedback Agent
+  - type: worker
+    name: agent-feedback
+    runtime: python
+    plan: free
+    buildCommand: pip install -e .
+    startCommand: python -m agents.feedback.main
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: AGENT_TYPE
+        value: feedback
+      - key: POSTGRES_DSN
+        fromDatabase:
+          name: advocacy-db
+          property: connectionString
+      - key: REDIS_DSN
+        fromService:
+          name: advocacy-redis
+          type: redis
+          property: connectionString
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+
+  # =============================================================================
+  # Redis (for caching and queuing)
+  # =============================================================================
+  - type: redis
+    name: advocacy-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []  # Allow all IPs for internal services
+
+# =============================================================================
+# PostgreSQL Database
+# =============================================================================
+databases:
+  - name: advocacy-db
+    plan: free
+    databaseName: advocacy
+    user: advocacy_user
+    ipAllowList: []  # Allow all IPs for internal services
+
+# =============================================================================
+# Environment Groups (shared secrets)
+# =============================================================================
+envVarGroups:
+  - name: llm-credentials
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: LLM_PROVIDER
+        value: openai
+        
+  - name: external-apis
+    envVars:
+      - key: CONGRESS_API_KEY
+        sync: false
+      - key: TWITTER_BEARER_TOKEN
+        sync: false
+      - key: REDDIT_CLIENT_ID
+        sync: false
+      - key: REDDIT_CLIENT_SECRET
+        sync: false
+      - key: NEWS_API_KEY
+        sync: false
+        
+  - name: communication-services
+    envVars:
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: SENDGRID_FROM_EMAIL
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+        
+  - name: messaging
+    envVars:
+      - key: KAFKA_BOOTSTRAP_SERVERS
+        sync: false  # Use Upstash Kafka or similar managed service
