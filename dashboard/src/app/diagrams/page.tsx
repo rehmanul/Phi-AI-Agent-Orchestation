@@ -14,6 +14,16 @@ import {
     Maximize2,
 } from 'lucide-react';
 
+// Declare mermaid on window
+declare global {
+    interface Window {
+        mermaid: {
+            initialize: (config: object) => void;
+            render: (id: string, content: string) => Promise<{ svg: string }>;
+        };
+    }
+}
+
 interface DiagramInfo {
     name: string;
     filename: string;
