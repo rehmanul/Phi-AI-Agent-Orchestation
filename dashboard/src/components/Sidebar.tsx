@@ -14,16 +14,21 @@ import {
     Settings,
     Zap,
     Upload,
+    GitBranch,
+    Bot,
+    FileCode,
 } from 'lucide-react';
 
 const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+    { name: 'Workflow', href: '/workflow', icon: GitBranch },
+    { name: 'Orchestration', href: '/orchestration', icon: Bot },
     { name: 'Documents', href: '/documents', icon: Upload },
+    { name: 'Diagrams', href: '/diagrams', icon: FileCode },
     { name: 'Intelligence', href: '/intelligence', icon: Radio },
     { name: 'Campaigns', href: '/campaigns', icon: Zap },
     { name: 'Legislators', href: '/legislators', icon: Users },
     { name: 'Content', href: '/content', icon: FileText },
-    { name: 'Actions', href: '/actions', icon: Send },
     { name: 'Analytics', href: '/analytics', icon: BarChart3 },
     { name: 'Settings', href: '/settings', icon: Settings },
 ];

@@ -12,7 +12,7 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes import campaigns, content, intelligence, legislators, metrics, agents, settings, documents
+from api.routes import campaigns, content, intelligence, legislators, metrics, agents, settings, documents, legislative, orchestration, diagrams
 from core.config import settings as app_settings
 from core.database import async_engine
 from core.messaging import shutdown_producer
@@ -66,6 +66,9 @@ app.include_router(metrics.router, prefix="/api/metrics", tags=["Metrics"])
 app.include_router(agents.router, prefix="/api/agents", tags=["Agents"])
 app.include_router(settings.router, prefix="/api", tags=["Settings"])
 app.include_router(documents.router, prefix="/api", tags=["Documents"])
+app.include_router(legislative.router, prefix="/api", tags=["Legislative"])
+app.include_router(orchestration.router, prefix="/api", tags=["Orchestration"])
+app.include_router(diagrams.router, prefix="/api", tags=["Diagrams"])
 
 
 @app.get("/health")
