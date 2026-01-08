@@ -14,88 +14,152 @@ import {
     EyeOff,
     CheckCircle,
     AlertCircle,
+    XCircle,
+    Loader2,
+    TestTube,
 } from 'lucide-react';
 
-interface ConfigSection {
+interface Setting {
     id: string;
-    title: string;
-    icon: React.ElementType;
-    description: string;
+    key: string;
+    category: string;
+    display_name: string | null;
+    description: string | null;
+    value: string;
+    is_secret: boolean;
+    is_configured: boolean;
+    is_required: boolean;
+    updated_at: string;
 }
 
-const sections: ConfigSection[] = [
-    { id: 'api-keys', title: 'API Keys', icon: Key, description: 'Configure external API credentials' },
-    { id: 'database', title: 'Database', icon: Database, description: 'Database connection settings' },
-    { id: 'notifications', title: 'Notifications', icon: Bell, description: 'Alert and notification preferences' },
-    { id: 'security', title: 'Security', icon: Shield, description: 'Authentication and access control' },
-];
+interface SettingsCategory {
+    category: string;
+    settings: Setting[];
+}
+
+interface TestResult {
+    key: string;
+    success: boolean;
+    message: string;
+}
 
 export default function SettingsPage() {
-    const [activeSection, setActiveSection] = useState('api-keys');
+    const [categories, setCategories] = useState<SettingsCategory[]>([]);
+    const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [activeCategory, setActiveCategory] = useState<string>('llm');
+
+    // Track edited values
+    const [editedValues, setEditedValues] = useState<Record<string, string>>({});
     const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
+    const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
+    const [testing, setTesting] = useState<Record<string, boolean>>({});
 
-    // API Keys state
-    const [apiKeys, setApiKeys] = useState({
-        openai_key: '',
-        anthropic_key: '',
-        congress_key: '',
-        twitter_token: '',
-        reddit_client_id: '',
-        reddit_secret: '',
-        newsapi_key: '',
-        sendgrid_key: '',
-        twilio_sid: '',
-        twilio_token: '',
-    });
+    useEffect(() => {
+        fetchSettings();
+    }, []);
 
-    // Notification settings
-    const [notifications, setNotifications] = useState({
-        email_alerts: true,
-        opposition_alerts: true,
-        bill_updates: true,
-        daily_digest: true,
-        weekly_report: false,
-    });
-
-    const toggleSecret = (key: string) => {
-        setShowSecrets(prev => ({ ...prev, [key]: !prev[key] }));
+    const fetchSettings = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await fetch('/api/settings/');
+            if (res.ok) {
+                const data: SettingsCategory[] = await res.json();
+                setCategories(data);
+                if (data.length > 0 && !data.find(c => c.category === activeCategory)) {
+                    setActiveCategory(data[0].category);
+                }
+            } else {
+                setError('Failed to load settings');
+            }
+        } catch (err) {
+            setError('Failed to connect to API');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleSave = async () => {
         setSaving(true);
+        setError(null);
+
         try {
-            // In production, this would call the API to save settings
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            setSaved(true);
-            setTimeout(() => setSaved(false), 3000);
+            // Filter out empty values
+            const toUpdate: Record<string, string> = {};
+            for (const [key, value] of Object.entries(editedValues)) {
+                if (value && value.trim()) {
+                    toUpdate[key] = value.trim();
+                }
+            }
+
+            if (Object.keys(toUpdate).length === 0) {
+                setSaving(false);
+                return;
+            }
+
+            const res = await fetch('/api/settings/bulk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ settings: toUpdate }),
+            });
+
+            if (res.ok) {
+                const result = await res.json();
+                if (result.success) {
+                    setSaved(true);
+                    setEditedValues({});
+                    setTimeout(() => setSaved(false), 3000);
+                    await fetchSettings();
+                } else {
+                    setError(`Some settings failed: ${result.errors.map((e: any) => e.key).join(', ')}`);
+                }
+            } else {
+                setError('Failed to save settings');
+            }
+        } catch (err) {
+            setError('Failed to connect to API');
         } finally {
             setSaving(false);
         }
     };
 
-    const renderApiKeyInput = (key: string, label: string, placeholder: string) => (
-        <div key={key} className="flex items-center gap-4">
-            <label className="w-48 text-sm font-medium">{label}</label>
-            <div className="flex-1 relative">
-                <input
-                    type={showSecrets[key] ? 'text' : 'password'}
-                    value={apiKeys[key as keyof typeof apiKeys]}
-                    onChange={(e) => setApiKeys(prev => ({ ...prev, [key]: e.target.value }))}
-                    placeholder={placeholder}
-                    className="w-full px-4 py-2 pr-10 rounded-lg bg-[var(--card-hover)] border border-[var(--border)] text-white placeholder:text-[var(--muted)] focus:outline-none focus:border-blue-500"
-                />
-                <button
-                    type="button"
-                    onClick={() => toggleSecret(key)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-white"
-                >
-                    {showSecrets[key] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-            </div>
-        </div>
-    );
+    const handleTest = async (key: string) => {
+        setTesting(prev => ({ ...prev, [key]: true }));
+        try {
+            const res = await fetch(`/api/settings/test/${key}`, { method: 'POST' });
+            if (res.ok) {
+                const result: TestResult = await res.json();
+                setTestResults(prev => ({ ...prev, [key]: result }));
+            }
+        } catch (err) {
+            setTestResults(prev => ({
+                ...prev,
+                [key]: { key, success: false, message: 'Test request failed' },
+            }));
+        } finally {
+            setTesting(prev => ({ ...prev, [key]: false }));
+        }
+    };
+
+    const toggleSecret = (key: string) => {
+        setShowSecrets(prev => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    const handleValueChange = (key: string, value: string) => {
+        setEditedValues(prev => ({ ...prev, [key]: value }));
+    };
+
+    const categoryInfo: Record<string, { icon: React.ElementType; label: string }> = {
+        llm: { icon: Key, label: 'LLM Providers' },
+        external_api: { icon: Database, label: 'External APIs' },
+        communication: { icon: Bell, label: 'Communication' },
+        messaging: { icon: Shield, label: 'Messaging' },
+    };
+
+    const activeSettings = categories.find(c => c.category === activeCategory)?.settings || [];
 
     return (
         <div className="flex min-h-screen bg-[var(--background)]">
@@ -105,234 +169,181 @@ export default function SettingsPage() {
                 <header className="mb-8">
                     <h1 className="text-3xl font-bold">Settings</h1>
                     <p className="text-[var(--muted)] mt-2">
-                        Configure system settings and credentials
+                        Configure API keys and system settings. All secrets are encrypted at rest.
                     </p>
                 </header>
 
-                <div className="flex gap-8">
-                    {/* Sidebar Navigation */}
-                    <div className="w-64 space-y-2">
-                        {sections.map((section) => (
-                            <button
-                                key={section.id}
-                                onClick={() => setActiveSection(section.id)}
-                                className={clsx(
-                                    'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors',
-                                    activeSection === section.id
-                                        ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
-                                        : 'bg-[var(--card)] text-[var(--muted)] hover:text-white border border-[var(--border)]'
-                                )}
-                            >
-                                <section.icon className="w-5 h-5" />
-                                <div>
-                                    <p className="font-medium">{section.title}</p>
-                                    <p className="text-xs opacity-70">{section.description}</p>
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Settings Content */}
-                    <div className="flex-1 bg-[var(--card)] border border-[var(--border)] rounded-xl p-6">
-                        {activeSection === 'api-keys' && (
-                            <div>
-                                <h2 className="text-xl font-semibold mb-6">API Keys</h2>
-                                <p className="text-sm text-[var(--muted)] mb-6">
-                                    Configure API credentials for external services. These are stored securely and used by the agents.
-                                </p>
-
-                                <div className="space-y-6">
-                                    <div>
-                                        <h3 className="text-sm font-medium text-[var(--muted)] mb-4 uppercase">LLM Providers</h3>
-                                        <div className="space-y-4">
-                                            {renderApiKeyInput('openai_key', 'OpenAI API Key', 'sk-...')}
-                                            {renderApiKeyInput('anthropic_key', 'Anthropic API Key', 'sk-ant-...')}
-                                        </div>
-                                    </div>
-
-                                    <div className="border-t border-[var(--border)] pt-6">
-                                        <h3 className="text-sm font-medium text-[var(--muted)] mb-4 uppercase">Data Sources</h3>
-                                        <div className="space-y-4">
-                                            {renderApiKeyInput('congress_key', 'Congress.gov API Key', 'Your API key')}
-                                            {renderApiKeyInput('twitter_token', 'Twitter Bearer Token', 'Bearer token')}
-                                            {renderApiKeyInput('newsapi_key', 'NewsAPI Key', 'Your API key')}
-                                        </div>
-                                    </div>
-
-                                    <div className="border-t border-[var(--border)] pt-6">
-                                        <h3 className="text-sm font-medium text-[var(--muted)] mb-4 uppercase">Communication</h3>
-                                        <div className="space-y-4">
-                                            {renderApiKeyInput('sendgrid_key', 'SendGrid API Key', 'SG...')}
-                                            {renderApiKeyInput('twilio_sid', 'Twilio Account SID', 'AC...')}
-                                            {renderApiKeyInput('twilio_token', 'Twilio Auth Token', 'Your token')}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {activeSection === 'database' && (
-                            <div>
-                                <h2 className="text-xl font-semibold mb-6">Database Settings</h2>
-                                <p className="text-sm text-[var(--muted)] mb-6">
-                                    Database connections are configured via environment variables. Current connection status:
-                                </p>
-
-                                <div className="space-y-4">
-                                    <div className="p-4 rounded-lg bg-[var(--card-hover)] border border-[var(--border)]">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <Database className="w-5 h-5 text-blue-400" />
-                                                <span className="font-medium">PostgreSQL</span>
-                                            </div>
-                                            <span className="flex items-center gap-2 text-green-400 text-sm">
-                                                <CheckCircle className="w-4 h-4" />
-                                                Connected
-                                            </span>
-                                        </div>
-                                        <p className="text-xs text-[var(--muted)] mt-2 ml-8">
-                                            Primary database for campaigns, intelligence, content
-                                        </p>
-                                    </div>
-
-                                    <div className="p-4 rounded-lg bg-[var(--card-hover)] border border-[var(--border)]">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <Database className="w-5 h-5 text-red-400" />
-                                                <span className="font-medium">Redis</span>
-                                            </div>
-                                            <span className="flex items-center gap-2 text-yellow-400 text-sm">
-                                                <AlertCircle className="w-4 h-4" />
-                                                Optional
-                                            </span>
-                                        </div>
-                                        <p className="text-xs text-[var(--muted)] mt-2 ml-8">
-                                            Caching and message queuing (configure REDIS_DSN)
-                                        </p>
-                                    </div>
-
-                                    <div className="p-4 rounded-lg bg-[var(--card-hover)] border border-[var(--border)]">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <Database className="w-5 h-5 text-purple-400" />
-                                                <span className="font-medium">Kafka</span>
-                                            </div>
-                                            <span className="flex items-center gap-2 text-yellow-400 text-sm">
-                                                <AlertCircle className="w-4 h-4" />
-                                                Optional
-                                            </span>
-                                        </div>
-                                        <p className="text-xs text-[var(--muted)] mt-2 ml-8">
-                                            Inter-agent messaging (configure KAFKA_BOOTSTRAP_SERVERS)
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {activeSection === 'notifications' && (
-                            <div>
-                                <h2 className="text-xl font-semibold mb-6">Notification Settings</h2>
-                                <p className="text-sm text-[var(--muted)] mb-6">
-                                    Configure how and when you receive alerts from the system.
-                                </p>
-
-                                <div className="space-y-4">
-                                    {Object.entries(notifications).map(([key, value]) => (
-                                        <div
-                                            key={key}
-                                            className="flex items-center justify-between p-4 rounded-lg bg-[var(--card-hover)] border border-[var(--border)]"
-                                        >
-                                            <div>
-                                                <p className="font-medium capitalize">{key.replace(/_/g, ' ')}</p>
-                                                <p className="text-xs text-[var(--muted)]">
-                                                    {key === 'email_alerts' && 'Receive email notifications for important events'}
-                                                    {key === 'opposition_alerts' && 'Get notified when opposition content is detected'}
-                                                    {key === 'bill_updates' && 'Alerts when tracked bills have status changes'}
-                                                    {key === 'daily_digest' && 'Daily summary of campaign activity'}
-                                                    {key === 'weekly_report' && 'Weekly performance report'}
-                                                </p>
-                                            </div>
-                                            <button
-                                                onClick={() => setNotifications(prev => ({ ...prev, [key]: !value }))}
-                                                className={clsx(
-                                                    'w-12 h-6 rounded-full transition-colors relative',
-                                                    value ? 'bg-blue-500' : 'bg-[var(--border)]'
-                                                )}
-                                            >
-                                                <div
-                                                    className={clsx(
-                                                        'w-5 h-5 rounded-full bg-white absolute top-0.5 transition-transform',
-                                                        value ? 'translate-x-6' : 'translate-x-0.5'
-                                                    )}
-                                                />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {activeSection === 'security' && (
-                            <div>
-                                <h2 className="text-xl font-semibold mb-6">Security Settings</h2>
-                                <p className="text-sm text-[var(--muted)] mb-6">
-                                    Authentication and access control settings.
-                                </p>
-
-                                <div className="space-y-6">
-                                    <div className="p-4 rounded-lg bg-[var(--card-hover)] border border-[var(--border)]">
-                                        <h3 className="font-medium mb-2">API Authentication</h3>
-                                        <p className="text-sm text-[var(--muted)]">
-                                            API endpoints are secured with JWT tokens. Configure API_SECRET_KEY in environment.
-                                        </p>
-                                    </div>
-
-                                    <div className="p-4 rounded-lg bg-[var(--card-hover)] border border-[var(--border)]">
-                                        <h3 className="font-medium mb-2">Agent Audit Logging</h3>
-                                        <p className="text-sm text-[var(--muted)]">
-                                            All agent actions are logged to the agent_events table for audit purposes.
-                                        </p>
-                                    </div>
-
-                                    <div className="p-4 rounded-lg bg-[var(--card-hover)] border border-[var(--border)]">
-                                        <h3 className="font-medium mb-2">CORS Configuration</h3>
-                                        <p className="text-sm text-[var(--muted)]">
-                                            Configure allowed origins in CORS_ORIGINS environment variable.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Save Button */}
-                        <div className="mt-8 pt-6 border-t border-[var(--border)] flex justify-end">
-                            <button
-                                onClick={handleSave}
-                                disabled={saving}
-                                className={clsx(
-                                    'flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition-colors',
-                                    saved
-                                        ? 'bg-green-500/20 text-green-400'
-                                        : 'bg-gradient-primary text-white hover:opacity-90',
-                                    saving && 'opacity-50 cursor-not-allowed'
-                                )}
-                            >
-                                {saved ? (
-                                    <>
-                                        <CheckCircle className="w-4 h-4" />
-                                        Saved
-                                    </>
-                                ) : (
-                                    <>
-                                        <Save className="w-4 h-4" />
-                                        {saving ? 'Saving...' : 'Save Changes'}
-                                    </>
-                                )}
-                            </button>
+                {error && (
+                    <div className="mb-6 p-4 rounded-lg bg-red-500/20 border border-red-500/40 text-red-400">
+                        <div className="flex items-center gap-2">
+                            <XCircle className="w-5 h-5" />
+                            <span>{error}</span>
                         </div>
                     </div>
-                </div>
+                )}
+
+                {loading ? (
+                    <div className="flex items-center justify-center h-64">
+                        <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
+                    </div>
+                ) : (
+                    <div className="flex gap-8">
+                        {/* Category Navigation */}
+                        <div className="w-64 space-y-2">
+                            {categories.map((cat) => {
+                                const info = categoryInfo[cat.category] || { icon: Settings, label: cat.category };
+                                const Icon = info.icon;
+                                const configuredCount = cat.settings.filter(s => s.is_configured).length;
+
+                                return (
+                                    <button
+                                        key={cat.category}
+                                        onClick={() => setActiveCategory(cat.category)}
+                                        className={clsx(
+                                            'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors',
+                                            activeCategory === cat.category
+                                                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
+                                                : 'bg-[var(--card)] text-[var(--muted)] hover:text-white border border-[var(--border)]'
+                                        )}
+                                    >
+                                        <Icon className="w-5 h-5" />
+                                        <div className="flex-1">
+                                            <p className="font-medium">{info.label}</p>
+                                            <p className="text-xs opacity-70">
+                                                {configuredCount}/{cat.settings.length} configured
+                                            </p>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* Settings Form */}
+                        <div className="flex-1 bg-[var(--card)] border border-[var(--border)] rounded-xl p-6">
+                            <h2 className="text-xl font-semibold mb-6 capitalize">
+                                {categoryInfo[activeCategory]?.label || activeCategory}
+                            </h2>
+
+                            <div className="space-y-6">
+                                {activeSettings.map((setting) => {
+                                    const testResult = testResults[setting.key];
+                                    const isTesting = testing[setting.key];
+
+                                    return (
+                                        <div key={setting.key} className="space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <label className="text-sm font-medium flex items-center gap-2">
+                                                    {setting.display_name || setting.key}
+                                                    {setting.is_required && (
+                                                        <span className="text-red-400 text-xs">Required</span>
+                                                    )}
+                                                    {setting.is_configured && (
+                                                        <CheckCircle className="w-4 h-4 text-green-400" />
+                                                    )}
+                                                </label>
+                                                {setting.is_configured && (
+                                                    <button
+                                                        onClick={() => handleTest(setting.key)}
+                                                        disabled={isTesting}
+                                                        className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-[var(--card-hover)] hover:bg-[var(--border)] text-[var(--muted)]"
+                                                    >
+                                                        {isTesting ? (
+                                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                                        ) : (
+                                                            <TestTube className="w-3 h-3" />
+                                                        )}
+                                                        Test
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            <div className="relative">
+                                                <input
+                                                    type={setting.is_secret && !showSecrets[setting.key] ? 'password' : 'text'}
+                                                    value={editedValues[setting.key] ?? ''}
+                                                    onChange={(e) => handleValueChange(setting.key, e.target.value)}
+                                                    placeholder={setting.is_configured ? setting.value : 'Enter value...'}
+                                                    className="w-full px-4 py-2 pr-20 rounded-lg bg-[var(--card-hover)] border border-[var(--border)] text-white placeholder:text-[var(--muted)] focus:outline-none focus:border-blue-500"
+                                                />
+                                                {setting.is_secret && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleSecret(setting.key)}
+                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-white"
+                                                    >
+                                                        {showSecrets[setting.key] ? (
+                                                            <EyeOff className="w-4 h-4" />
+                                                        ) : (
+                                                            <Eye className="w-4 h-4" />
+                                                        )}
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            {setting.description && (
+                                                <p className="text-xs text-[var(--muted)]">{setting.description}</p>
+                                            )}
+
+                                            {testResult && (
+                                                <div
+                                                    className={clsx(
+                                                        'text-xs px-2 py-1 rounded flex items-center gap-1',
+                                                        testResult.success
+                                                            ? 'bg-green-500/20 text-green-400'
+                                                            : 'bg-red-500/20 text-red-400'
+                                                    )}
+                                                >
+                                                    {testResult.success ? (
+                                                        <CheckCircle className="w-3 h-3" />
+                                                    ) : (
+                                                        <XCircle className="w-3 h-3" />
+                                                    )}
+                                                    {testResult.message}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Save Button */}
+                            <div className="mt-8 pt-6 border-t border-[var(--border)] flex justify-between items-center">
+                                <p className="text-xs text-[var(--muted)]">
+                                    {Object.keys(editedValues).filter(k => editedValues[k]).length} changes pending
+                                </p>
+                                <button
+                                    onClick={handleSave}
+                                    disabled={saving || Object.keys(editedValues).filter(k => editedValues[k]).length === 0}
+                                    className={clsx(
+                                        'flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition-colors',
+                                        saved
+                                            ? 'bg-green-500/20 text-green-400'
+                                            : 'bg-gradient-primary text-white hover:opacity-90',
+                                        (saving || Object.keys(editedValues).filter(k => editedValues[k]).length === 0) &&
+                                        'opacity-50 cursor-not-allowed'
+                                    )}
+                                >
+                                    {saved ? (
+                                        <>
+                                            <CheckCircle className="w-4 h-4" />
+                                            Saved!
+                                        </>
+                                    ) : saving ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            Saving...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save className="w-4 h-4" />
+                                            Save Changes
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
     );

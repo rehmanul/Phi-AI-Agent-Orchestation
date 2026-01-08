@@ -663,3 +663,55 @@ class AgentEvent(Base):
     __table_args__ = (
         Index("ix_agent_events_agent_time", "agent_type", "created_at"),
     )
+
+
+# =============================================================================
+# System Settings (Encrypted Configuration)
+# =============================================================================
+
+class SystemSetting(Base):
+    """
+    Encrypted system settings and API keys.
+    
+    Stores configuration that can be modified at runtime.
+    All sensitive values are encrypted using Fernet.
+    """
+    
+    __tablename__ = "system_settings"
+    
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+    
+    # Setting identification
+    key: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    category: Mapped[str] = mapped_column(
+        String(50),
+        index=True,
+    )  # llm, external_api, communication, messaging, general
+    
+    # Value storage
+    value: Mapped[str] = mapped_column(Text, nullable=False)  # Encrypted
+    is_secret: Mapped[bool] = mapped_column(Boolean, default=True)
+    
+    # Metadata
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    display_name: Mapped[Optional[str]] = mapped_column(String(255))
+    
+    # Validation
+    is_required: Mapped[bool] = mapped_column(Boolean, default=False)
+    validation_regex: Mapped[Optional[str]] = mapped_column(String(255))
+    
+    # Status
+    is_configured: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_validated_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )

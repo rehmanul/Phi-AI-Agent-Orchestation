@@ -12,9 +12,9 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes import campaigns, content, intelligence, legislators, metrics, agents
-from core.config import settings
-from core.database import async_engine
+from api.routes import campaigns, content, intelligence, legislators, metrics, agents, settings
+from core.config import settings as app_settings
+from core.database import async_engine, get_async_session
 from core.messaging import shutdown_producer
 
 logger = structlog.get_logger()
@@ -25,7 +25,15 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     logger.info("Starting API server")
     
-    # Startup
+    # Startup - initialize default settings
+    try:
+        async for session in get_async_session():
+            from api.routes.settings import initialize_default_settings
+            await initialize_default_settings(session)
+            break
+    except Exception as e:
+        logger.warning("Could not initialize default settings", error=str(e))
+    
     yield
     
     # Shutdown
@@ -44,7 +52,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=app_settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -57,6 +65,7 @@ app.include_router(legislators.router, prefix="/api/legislators", tags=["Legisla
 app.include_router(content.router, prefix="/api/content", tags=["Content"])
 app.include_router(metrics.router, prefix="/api/metrics", tags=["Metrics"])
 app.include_router(agents.router, prefix="/api/agents", tags=["Agents"])
+app.include_router(settings.router, prefix="/api", tags=["Settings"])
 
 
 @app.get("/health")
