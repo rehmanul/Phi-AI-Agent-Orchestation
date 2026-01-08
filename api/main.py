@@ -14,8 +14,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes import campaigns, content, intelligence, legislators, metrics, agents, settings
 from core.config import settings as app_settings
-from core.database import async_engine, get_async_session
+from core.database import async_engine
 from core.messaging import shutdown_producer
+from core.settings import get_settings_store
 
 logger = structlog.get_logger()
 
@@ -25,14 +26,12 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     logger.info("Starting API server")
     
-    # Startup - initialize default settings
+    # Initialize file-based settings store (no database required)
     try:
-        async for session in get_async_session():
-            from api.routes.settings import initialize_default_settings
-            await initialize_default_settings(session)
-            break
+        get_settings_store()
+        logger.info("Settings store initialized")
     except Exception as e:
-        logger.warning("Could not initialize default settings", error=str(e))
+        logger.warning("Could not initialize settings store", error=str(e))
     
     yield
     
