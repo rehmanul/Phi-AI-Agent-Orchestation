@@ -38,11 +38,13 @@ class LLMClient:
         self,
         provider: Optional[Literal["openai", "anthropic"]] = None,
         model: Optional[str] = None,
+        api_key: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: int = 4096,
     ):
         self.provider = provider or settings.llm_provider
-        self.model = model or settings.get_llm_model()
+        self.model = model or self._default_model(self.provider)
+        self.api_key = api_key
         self.temperature = temperature
         self.max_tokens = max_tokens
         
@@ -56,21 +58,34 @@ class LLMClient:
     def _create_llm(self) -> BaseChatModel:
         """Create the appropriate LLM instance based on provider."""
         if self.provider == "openai":
+            api_key = self.api_key or settings.openai_api_key
+            if not api_key:
+                raise ValueError("OpenAI API key not configured")
             return ChatOpenAI(
                 model=self.model,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
-                api_key=settings.openai_api_key,
+                api_key=api_key,
             )
         elif self.provider == "anthropic":
+            api_key = self.api_key or settings.anthropic_api_key
+            if not api_key:
+                raise ValueError("Anthropic API key not configured")
             return ChatAnthropic(
                 model=self.model,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
-                api_key=settings.anthropic_api_key,
+                api_key=api_key,
             )
         else:
             raise ValueError(f"Unsupported LLM provider: {self.provider}")
+
+    def _default_model(self, provider: str) -> str:
+        if provider == "openai":
+            return settings.openai_model
+        if provider == "anthropic":
+            return settings.anthropic_model
+        raise ValueError(f"Unsupported LLM provider: {provider}")
     
     @property
     def llm(self) -> BaseChatModel:

@@ -7,15 +7,21 @@ Provides endpoints for:
 - Viewing generated artifacts
 """
 
+import asyncio
+import json
 import os
 import uuid
-import json
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
-from fastapi import APIRouter, File, UploadFile, HTTPException, BackgroundTasks
+import tiktoken
+from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
+
+from core.llm.client import LLMClient
+from core.settings import get_setting_value
 
 # PDF text extraction
 try:
@@ -58,6 +64,9 @@ class DocumentInfo(BaseModel):
     processed_at: Optional[str] = None
     artifacts: List[str] = []
     error: Optional[str] = None
+    review_pending_count: int = 0
+    review_total_count: int = 0
+    review_completed_count: int = 0
 
 
 class ArtifactInfo(BaseModel):
@@ -67,6 +76,10 @@ class ArtifactInfo(BaseModel):
     title: str
     content: str
     created_at: str
+    review_status: str = "pending_review"
+    reviewed_at: Optional[str] = None
+    reviewed_by: Optional[str] = None
+    review_notes: Optional[str] = None
 
 
 class ProcessingResult(BaseModel):
@@ -74,6 +87,12 @@ class ProcessingResult(BaseModel):
     status: str
     message: str
     artifacts: List[str] = []
+
+
+class ArtifactReviewUpdate(BaseModel):
+    review_status: str
+    reviewed_by: str
+    review_notes: Optional[str] = None
 
 
 # =============================================================================
@@ -123,182 +142,194 @@ def extract_text_from_pdf(file_path: Path) -> tuple[str, int]:
     )
 
 
-def process_document(doc_id: str, text: str) -> List[dict]:
+REVIEW_PENDING = "pending_review"
+REVIEW_REVIEWED = "reviewed"
+REVIEW_NEEDS_REVISION = "needs_revision"
+
+CHUNK_TOKEN_LIMIT = 2500
+CHUNK_OVERLAP = 200
+ENTITY_TYPES = [
+    "people",
+    "organizations",
+    "locations",
+    "bills",
+    "committees",
+    "agencies",
+    "regulations",
+    "dates",
+    "monetary_values",
+]
+
+
+def _get_llm_client() -> LLMClient:
+    provider = (get_setting_value("llm_provider") or "openai").lower()
+    if provider not in ("openai", "anthropic"):
+        raise HTTPException(status_code=422, detail="Unsupported LLM provider")
+    api_key = get_setting_value(f"{provider}_api_key")
+    if not api_key:
+        raise HTTPException(status_code=422, detail=f"{provider} API key is not configured")
+    return LLMClient(provider=provider, api_key=api_key, temperature=0.2, max_tokens=2048)
+
+
+def _get_tokenizer(model: str) -> tiktoken.Encoding:
+    try:
+        return tiktoken.encoding_for_model(model)
+    except KeyError:
+        return tiktoken.get_encoding("cl100k_base")
+
+
+def _chunk_text(text: str, model: str, max_tokens: int = CHUNK_TOKEN_LIMIT) -> List[str]:
+    if not text.strip():
+        return []
+    encoding = _get_tokenizer(model)
+    tokens = encoding.encode(text)
+    if len(tokens) <= max_tokens:
+        return [text]
+    step = max(1, max_tokens - CHUNK_OVERLAP)
+    chunks = []
+    for idx in range(0, len(tokens), step):
+        chunk_tokens = tokens[idx: idx + max_tokens]
+        if not chunk_tokens:
+            continue
+        chunks.append(encoding.decode(chunk_tokens))
+    return chunks
+
+
+async def _summarize_chunks(llm: LLMClient, chunks: List[str]) -> str:
+    system_prompt = (
+        "You are a senior policy analyst. Provide rigorous, factual summaries of "
+        "legislative and regulatory documents. Avoid speculation."
+    )
+    if len(chunks) == 1:
+        prompt = (
+            "Summarize the document with clear headings and bullets. Include: "
+            "Executive Summary, Key Findings, Stakeholders, Deadlines, "
+            "Compliance Obligations, and Open Questions.\n\n"
+            f"TEXT:\n{chunks[0]}"
+        )
+        return await llm.generate(prompt, system_prompt=system_prompt)
+
+    section_summaries = []
+    for idx, chunk in enumerate(chunks, 1):
+        prompt = (
+            f"Summarize section {idx} of {len(chunks)}. Capture concrete facts, "
+            "definitions, deadlines, and obligations. Use bullets and short headings.\n\n"
+            f"TEXT:\n{chunk}"
+        )
+        section_summaries.append(await llm.generate(prompt, system_prompt=system_prompt))
+
+    combined_prompt = (
+        "Combine the section summaries into a cohesive document summary with these "
+        "sections: Executive Summary, Key Findings, Stakeholders and Agencies, "
+        "Deadlines and Dates, Compliance Requirements, Risks or Conflicts, and "
+        "Open Questions. Keep it concise but complete.\n\nSECTION SUMMARIES:\n"
+        + "\n\n".join(section_summaries)
+    )
+    return await llm.generate(combined_prompt, system_prompt=system_prompt)
+
+
+async def _extract_entities(llm: LLMClient, chunks: List[str]) -> Dict[str, List[str]]:
+    results = await asyncio.gather(
+        *[llm.extract_entities(chunk, entity_types=ENTITY_TYPES) for chunk in chunks]
+    )
+    merged: Dict[str, set] = {}
+    for result in results:
+        for key, values in result.items():
+            if key not in merged:
+                merged[key] = set()
+            merged[key].update(v.strip() for v in values if v.strip())
+    return {key: sorted(list(values)) for key, values in merged.items()}
+
+
+def _format_entities(entities: Dict[str, List[str]]) -> str:
+    if not entities:
+        return "## Extracted Entities\n\nNo entities detected."
+    output = "## Extracted Entities\n\n"
+    for key in sorted(entities.keys()):
+        items = entities[key]
+        if not items:
+            continue
+        heading = key.replace("_", " ").title()
+        output += f"### {heading}\n"
+        for item in items:
+            output += f"- {item}\n"
+        output += "\n"
+    return output.strip()
+
+
+async def _generate_action_plan(
+    llm: LLMClient,
+    summary: str,
+    entities: Dict[str, List[str]],
+) -> str:
+    entities_preview = json.dumps(entities, indent=2)
+    system_prompt = (
+        "You are a policy operations lead. Produce concrete, actionable plans "
+        "grounded in the source document."
+    )
+    prompt = (
+        "Create an action plan based on the document summary and extracted entities. "
+        "Include sections: Immediate Actions (0-30 days), Mid-Term Actions (30-90 days), "
+        "Stakeholder Engagement, Legal/Compliance Steps, Communications Plan, and Risks "
+        "with Mitigations. Use numbered tasks with clear intent.\n\n"
+        f"SUMMARY:\n{summary}\n\nENTITIES:\n{entities_preview}"
+    )
+    return await llm.generate(prompt, system_prompt=system_prompt)
+
+
+async def process_document(doc_id: str, text: str) -> List[dict]:
     """
-    Process extracted text and generate artifacts.
-    This is a simplified local processor that doesn't require API keys.
+    Process extracted text and generate artifacts using the configured LLM provider.
     """
-    artifacts = []
-    
-    # 1. Document Summary (basic extraction)
-    summary_artifact = {
-        "id": str(uuid.uuid4()),
-        "document_id": doc_id,
-        "artifact_type": "summary",
-        "title": "Document Summary",
-        "content": generate_summary(text),
-        "created_at": datetime.utcnow().isoformat(),
-    }
-    artifacts.append(summary_artifact)
-    
-    # 2. Key Entities Extraction
-    entities_artifact = {
-        "id": str(uuid.uuid4()),
-        "document_id": doc_id,
-        "artifact_type": "entities",
-        "title": "Key Entities & Terms",
-        "content": extract_key_entities(text),
-        "created_at": datetime.utcnow().isoformat(),
-    }
-    artifacts.append(entities_artifact)
-    
-    # 3. Action Items (if any legislative content detected)
-    if any(word in text.lower() for word in ['bill', 'law', 'regulation', 'amendment', 'section', 'statute']):
-        action_artifact = {
+    llm = _get_llm_client()
+    chunks = _chunk_text(text, llm.model)
+    if not chunks:
+        raise HTTPException(status_code=422, detail="No extractable text found in PDF")
+
+    summary = await _summarize_chunks(llm, chunks)
+    entities = await _extract_entities(llm, chunks)
+    action_plan = await _generate_action_plan(llm, summary, entities)
+
+    artifacts = [
+        {
+            "id": str(uuid.uuid4()),
+            "document_id": doc_id,
+            "artifact_type": "summary",
+            "title": "Document Summary",
+            "content": summary,
+            "created_at": datetime.utcnow().isoformat(),
+            "review_status": REVIEW_PENDING,
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "document_id": doc_id,
+            "artifact_type": "entities",
+            "title": "Key Entities and Terms",
+            "content": _format_entities(entities),
+            "created_at": datetime.utcnow().isoformat(),
+            "review_status": REVIEW_PENDING,
+        },
+        {
             "id": str(uuid.uuid4()),
             "document_id": doc_id,
             "artifact_type": "action_plan",
-            "title": "Legislative Action Items",
-            "content": generate_action_items(text),
+            "title": "Action Plan",
+            "content": action_plan,
             "created_at": datetime.utcnow().isoformat(),
-        }
-        artifacts.append(action_artifact)
-    
-    # 4. Full Text Reference
-    text_artifact = {
-        "id": str(uuid.uuid4()),
-        "document_id": doc_id,
-        "artifact_type": "full_text",
-        "title": "Extracted Full Text",
-        "content": text[:50000],  # Limit to 50k chars
-        "created_at": datetime.utcnow().isoformat(),
-    }
-    artifacts.append(text_artifact)
-    
+            "review_status": REVIEW_PENDING,
+        },
+        {
+            "id": str(uuid.uuid4()),
+            "document_id": doc_id,
+            "artifact_type": "full_text",
+            "title": "Extracted Full Text",
+            "content": text,
+            "created_at": datetime.utcnow().isoformat(),
+            "review_status": REVIEW_PENDING,
+        },
+    ]
+
     return artifacts
-
-
-def generate_summary(text: str) -> str:
-    """Generate a basic summary from text (no LLM required)."""
-    lines = text.split('\n')
-    
-    # Find potential title/header lines
-    headers = []
-    for line in lines[:50]:
-        line = line.strip()
-        if line and len(line) < 200 and line[0].isupper():
-            headers.append(line)
-    
-    # Get first substantial paragraphs
-    paragraphs = []
-    for line in lines:
-        line = line.strip()
-        if len(line) > 100:
-            paragraphs.append(line)
-            if len(paragraphs) >= 5:
-                break
-    
-    summary = "## Document Overview\n\n"
-    
-    if headers:
-        summary += "### Key Sections\n"
-        for h in headers[:10]:
-            summary += f"- {h}\n"
-        summary += "\n"
-    
-    if paragraphs:
-        summary += "### Content Preview\n\n"
-        for p in paragraphs[:3]:
-            summary += f"{p[:500]}...\n\n"
-    
-    summary += f"\n---\n*Document contains {len(text):,} characters across {len(lines):,} lines.*"
-    
-    return summary
-
-
-def extract_key_entities(text: str) -> str:
-    """Extract key entities from text (basic pattern matching)."""
-    import re
-    
-    entities = {
-        "Organizations": set(),
-        "Legal References": set(),
-        "Monetary Values": set(),
-        "Dates": set(),
-        "Key Terms": set(),
-    }
-    
-    # Organizations (capitalized phrases)
-    org_patterns = re.findall(r'(?:The\s+)?[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,4}(?:\s+(?:Inc|LLC|Corp|Commission|Agency|Department|Act|Bill))?', text)
-    for org in org_patterns[:20]:
-        if len(org) > 5:
-            entities["Organizations"].add(org)
-    
-    # Legal references
-    legal_patterns = re.findall(r'(?:Section|§|Title|Chapter|Article|Bill|H\.R\.|S\.)\s*\d+[\w\-\.]*', text, re.IGNORECASE)
-    entities["Legal References"] = set(legal_patterns[:15])
-    
-    # Monetary values
-    money_patterns = re.findall(r'\$[\d,]+(?:\.\d{2})?(?:\s*(?:million|billion|thousand))?', text, re.IGNORECASE)
-    entities["Monetary Values"] = set(money_patterns[:10])
-    
-    # Dates
-    date_patterns = re.findall(r'(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}', text)
-    entities["Dates"] = set(date_patterns[:10])
-    
-    # Format output
-    output = "## Extracted Entities\n\n"
-    for category, items in entities.items():
-        if items:
-            output += f"### {category}\n"
-            for item in sorted(items)[:15]:
-                output += f"- {item}\n"
-            output += "\n"
-    
-    return output
-
-
-def generate_action_items(text: str) -> str:
-    """Generate action items for legislative content."""
-    output = "## Recommended Actions\n\n"
-    
-    text_lower = text.lower()
-    
-    actions = []
-    
-    if 'deadline' in text_lower or 'by date' in text_lower:
-        actions.append("Review and note all compliance deadlines")
-    
-    if 'comment' in text_lower and 'period' in text_lower:
-        actions.append("Prepare public comment submission before comment period closes")
-    
-    if 'stakeholder' in text_lower:
-        actions.append("Identify and engage key stakeholders")
-    
-    if 'amendment' in text_lower:
-        actions.append("Draft proposed amendments for review")
-    
-    if 'testimony' in text_lower or 'hearing' in text_lower:
-        actions.append("Prepare testimony for upcoming hearings")
-    
-    if 'wireless' in text_lower or 'power' in text_lower or 'energy' in text_lower:
-        actions.append("Coordinate with technical team on wireless power policy implications")
-    
-    # Default actions
-    if not actions:
-        actions = [
-            "Review document with legal team",
-            "Summarize key points for stakeholders",
-            "Identify relevant policy impacts",
-            "Schedule follow-up strategy session",
-        ]
-    
-    for i, action in enumerate(actions, 1):
-        output += f"{i}. **{action}**\n"
-    
-    output += "\n---\n*These are preliminary recommendations based on document content.*"
-    
-    return output
 
 
 # =============================================================================
@@ -317,12 +348,18 @@ def load_document_info(doc_id: str) -> Optional[dict]:
     doc_path = PROCESSED_DIR / f"{doc_id}.json"
     if doc_path.exists():
         with open(doc_path, 'r') as f:
-            return json.load(f)
+            doc = json.load(f)
+        if not isinstance(doc, dict):
+            return None
+        counts = _compute_review_counts(doc.get("artifacts", []))
+        doc.update({k: doc.get(k, v) for k, v in counts.items()})
+        return doc
     return None
 
 
 def save_artifact(artifact: dict) -> None:
     """Save an artifact to disk."""
+    artifact = _normalize_artifact(artifact)
     artifact_path = ARTIFACTS_DIR / f"{artifact['id']}.json"
     with open(artifact_path, 'w') as f:
         json.dump(artifact, f, indent=2)
@@ -333,8 +370,45 @@ def load_artifact(artifact_id: str) -> Optional[dict]:
     artifact_path = ARTIFACTS_DIR / f"{artifact_id}.json"
     if artifact_path.exists():
         with open(artifact_path, 'r') as f:
-            return json.load(f)
+            return _normalize_artifact(json.load(f))
     return None
+
+
+def _normalize_artifact(artifact: dict) -> dict:
+    artifact.setdefault("review_status", REVIEW_PENDING)
+    artifact.setdefault("reviewed_at", None)
+    artifact.setdefault("reviewed_by", None)
+    artifact.setdefault("review_notes", None)
+    return artifact
+
+
+def _compute_review_counts(artifact_ids: List[str]) -> Dict[str, int]:
+    pending = 0
+    reviewed = 0
+    for artifact_id in artifact_ids:
+        artifact = load_artifact(artifact_id)
+        if not artifact:
+            continue
+        status = artifact.get("review_status", REVIEW_PENDING)
+        if status in {REVIEW_PENDING, REVIEW_NEEDS_REVISION}:
+            pending += 1
+        elif status == REVIEW_REVIEWED:
+            reviewed += 1
+    total = len(artifact_ids)
+    return {
+        "review_pending_count": pending,
+        "review_completed_count": reviewed,
+        "review_total_count": total,
+    }
+
+
+def _update_document_review_counts(doc_id: str) -> None:
+    doc = load_document_info(doc_id)
+    if not doc:
+        return
+    counts = _compute_review_counts(doc.get("artifacts", []))
+    doc.update(counts)
+    save_document_info(doc)
 
 
 # =============================================================================
@@ -343,12 +417,11 @@ def load_artifact(artifact_id: str) -> Optional[dict]:
 
 @router.post("/upload", response_model=DocumentInfo)
 async def upload_document(
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
 ):
     """
     Upload a PDF document for processing.
-    The document will be processed in the background.
+    The document is processed synchronously to generate review-ready artifacts.
     """
     # Validate file type
     if not file.filename.lower().endswith('.pdf'):
@@ -370,6 +443,9 @@ async def upload_document(
         "status": "processing",
         "uploaded_at": datetime.utcnow().isoformat(),
         "artifacts": [],
+        "review_pending_count": 0,
+        "review_total_count": 0,
+        "review_completed_count": 0,
     }
     
     # Process immediately (synchronous for now)
@@ -380,23 +456,30 @@ async def upload_document(
         doc_info["text_length"] = len(text)
         
         # Generate artifacts
-        artifacts = process_document(doc_id, text)
+        artifacts = await process_document(doc_id, text)
         
         # Save artifacts
         for artifact in artifacts:
             save_artifact(artifact)
             doc_info["artifacts"].append(artifact["id"])
         
+        doc_info.update(_compute_review_counts(doc_info["artifacts"]))
         doc_info["status"] = "completed"
         doc_info["processed_at"] = datetime.utcnow().isoformat()
-        
+    except HTTPException as e:
+        doc_info["status"] = "error"
+        doc_info["error"] = e.detail
+        save_document_info(doc_info)
+        raise
     except Exception as e:
         doc_info["status"] = "error"
         doc_info["error"] = str(e)
-    
+        save_document_info(doc_info)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
     # Save document info
     save_document_info(doc_info)
-    
+
     return DocumentInfo(**doc_info)
 
 
@@ -407,6 +490,8 @@ async def list_documents():
     for doc_file in PROCESSED_DIR.glob("*.json"):
         with open(doc_file, 'r') as f:
             doc = json.load(f)
+        if isinstance(doc, dict):
+            doc.update(_compute_review_counts(doc.get("artifacts", [])))
             documents.append(DocumentInfo(**doc))
     
     # Sort by upload date (newest first)
@@ -420,6 +505,7 @@ async def get_document(doc_id: str):
     doc = load_document_info(doc_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
+    doc.update(_compute_review_counts(doc.get("artifacts", [])))
     return DocumentInfo(**doc)
 
 
@@ -446,6 +532,42 @@ async def get_artifact(artifact_id: str):
     if not artifact:
         raise HTTPException(status_code=404, detail="Artifact not found")
     return ArtifactInfo(**artifact)
+
+
+@router.put("/artifacts/{artifact_id}/review", response_model=ArtifactInfo)
+async def update_artifact_review(artifact_id: str, payload: ArtifactReviewUpdate):
+    """Update review status for a specific artifact."""
+    artifact = load_artifact(artifact_id)
+    if not artifact:
+        raise HTTPException(status_code=404, detail="Artifact not found")
+    if payload.review_status not in {REVIEW_PENDING, REVIEW_REVIEWED, REVIEW_NEEDS_REVISION}:
+        raise HTTPException(status_code=400, detail="Invalid review status")
+    if payload.review_status == REVIEW_NEEDS_REVISION and not payload.review_notes:
+        raise HTTPException(status_code=422, detail="Review notes are required for revisions")
+
+    artifact["review_status"] = payload.review_status
+    artifact["reviewed_by"] = payload.reviewed_by
+    artifact["review_notes"] = payload.review_notes
+    artifact["reviewed_at"] = (
+        datetime.utcnow().isoformat() if payload.review_status != REVIEW_PENDING else None
+    )
+    save_artifact(artifact)
+    _update_document_review_counts(artifact.get("document_id", ""))
+    return ArtifactInfo(**artifact)
+
+
+@router.get("/{doc_id}/file")
+async def get_document_file(doc_id: str):
+    """Stream the original PDF for inline viewing."""
+    doc = load_document_info(doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    pdf_path = UPLOADS_DIR / f"{doc_id}.pdf"
+    if not pdf_path.exists():
+        raise HTTPException(status_code=404, detail="PDF file not found")
+    filename = doc.get("filename", f"{doc_id}.pdf")
+    headers = {"Content-Disposition": f"inline; filename=\"{filename}\""}
+    return FileResponse(pdf_path, media_type="application/pdf", filename=filename, headers=headers)
 
 
 @router.delete("/{doc_id}")
