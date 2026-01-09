@@ -361,7 +361,7 @@ export default function DocumentsPage() {
                                     </label>
                                 </p>
                                 <p className="text-sm text-[var(--muted)]">
-                                    PDF files only. Analysis requires a configured LLM key.
+                                    PDF files only. Analysis runs locally with no API keys.
                                 </p>
                             </div>
                         </div>

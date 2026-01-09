@@ -7,7 +7,6 @@ Provides endpoints for:
 - Viewing generated artifacts
 """
 
-import asyncio
 import json
 import os
 import uuid
@@ -15,13 +14,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
-import tiktoken
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-
-from core.llm.client import LLMClient
-from core.settings import get_setting_value
 
 # PDF text extraction
 try:
@@ -146,99 +141,195 @@ REVIEW_PENDING = "pending_review"
 REVIEW_REVIEWED = "reviewed"
 REVIEW_NEEDS_REVISION = "needs_revision"
 
-CHUNK_TOKEN_LIMIT = 2500
-CHUNK_OVERLAP = 200
-ENTITY_TYPES = [
-    "people",
-    "organizations",
-    "locations",
-    "bills",
-    "committees",
-    "agencies",
-    "regulations",
-    "dates",
-    "monetary_values",
+STOPWORDS = {
+    "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has", "have",
+    "in", "is", "it", "its", "of", "on", "or", "that", "the", "to", "was", "were",
+    "with", "this", "these", "those", "will", "shall", "may", "must", "not", "no",
+    "such", "their", "they", "them", "he", "she", "we", "our", "you", "your",
+    "which", "who", "whom", "what", "when", "where", "why", "how", "if", "then",
+    "also", "any", "all", "can", "could", "should", "would", "than", "into", "over",
+    "under", "up", "down", "out", "about", "there", "here", "after", "before",
+}
+
+AGENCY_NAMES = [
+    "Federal Communications Commission",
+    "Federal Trade Commission",
+    "Department of Energy",
+    "Department of Commerce",
+    "Department of Transportation",
+    "Department of Homeland Security",
+    "Department of Justice",
+    "Department of Defense",
+    "Environmental Protection Agency",
+    "Office of Management and Budget",
+    "Office of Science and Technology Policy",
+    "National Institute of Standards and Technology",
+    "National Telecommunications and Information Administration",
+    "Securities and Exchange Commission",
+    "Federal Energy Regulatory Commission",
 ]
 
+STATE_NAMES = [
+    "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut",
+    "Delaware", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa",
+    "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan",
+    "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada",
+    "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina",
+    "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island",
+    "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont",
+    "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming",
+]
 
-def _get_llm_client() -> LLMClient:
-    provider = (get_setting_value("llm_provider") or "openai").lower()
-    if provider not in ("openai", "anthropic"):
-        raise HTTPException(status_code=422, detail="Unsupported LLM provider")
-    api_key = get_setting_value(f"{provider}_api_key")
-    if not api_key:
-        raise HTTPException(status_code=422, detail=f"{provider} API key is not configured")
-    return LLMClient(provider=provider, api_key=api_key, temperature=0.2, max_tokens=2048)
+MONTHS = (
+    "January", "February", "March", "April", "May", "June", "July", "August",
+    "September", "October", "November", "December",
+)
 
 
-def _get_tokenizer(model: str) -> tiktoken.Encoding:
-    try:
-        return tiktoken.encoding_for_model(model)
-    except KeyError:
-        return tiktoken.get_encoding("cl100k_base")
+def _normalize_text(text: str) -> str:
+    return " ".join(text.replace("\r\n", "\n").replace("\r", "\n").split())
 
 
-def _chunk_text(text: str, model: str, max_tokens: int = CHUNK_TOKEN_LIMIT) -> List[str]:
-    if not text.strip():
+def _split_sentences(text: str) -> List[str]:
+    import re
+
+    normalized = _normalize_text(text)
+    if not normalized:
         return []
-    encoding = _get_tokenizer(model)
-    tokens = encoding.encode(text)
-    if len(tokens) <= max_tokens:
-        return [text]
-    step = max(1, max_tokens - CHUNK_OVERLAP)
-    chunks = []
-    for idx in range(0, len(tokens), step):
-        chunk_tokens = tokens[idx: idx + max_tokens]
-        if not chunk_tokens:
+    sentences = re.split(r"(?<=[.!?])\s+(?=[A-Z0-9])", normalized)
+    cleaned = []
+    for sentence in sentences:
+        sentence = sentence.strip()
+        if len(sentence) < 30:
             continue
-        chunks.append(encoding.decode(chunk_tokens))
-    return chunks
+        cleaned.append(sentence)
+    return cleaned
 
 
-async def _summarize_chunks(llm: LLMClient, chunks: List[str]) -> str:
-    system_prompt = (
-        "You are a senior policy analyst. Provide rigorous, factual summaries of "
-        "legislative and regulatory documents. Avoid speculation."
-    )
-    if len(chunks) == 1:
-        prompt = (
-            "Summarize the document with clear headings and bullets. Include: "
-            "Executive Summary, Key Findings, Stakeholders, Deadlines, "
-            "Compliance Obligations, and Open Questions.\n\n"
-            f"TEXT:\n{chunks[0]}"
-        )
-        return await llm.generate(prompt, system_prompt=system_prompt)
+def _tokenize_words(text: str) -> List[str]:
+    import re
 
-    section_summaries = []
-    for idx, chunk in enumerate(chunks, 1):
-        prompt = (
-            f"Summarize section {idx} of {len(chunks)}. Capture concrete facts, "
-            "definitions, deadlines, and obligations. Use bullets and short headings.\n\n"
-            f"TEXT:\n{chunk}"
-        )
-        section_summaries.append(await llm.generate(prompt, system_prompt=system_prompt))
-
-    combined_prompt = (
-        "Combine the section summaries into a cohesive document summary with these "
-        "sections: Executive Summary, Key Findings, Stakeholders and Agencies, "
-        "Deadlines and Dates, Compliance Requirements, Risks or Conflicts, and "
-        "Open Questions. Keep it concise but complete.\n\nSECTION SUMMARIES:\n"
-        + "\n\n".join(section_summaries)
-    )
-    return await llm.generate(combined_prompt, system_prompt=system_prompt)
+    return re.findall(r"[A-Za-z0-9][A-Za-z0-9\-']+", text.lower())
 
 
-async def _extract_entities(llm: LLMClient, chunks: List[str]) -> Dict[str, List[str]]:
-    results = await asyncio.gather(
-        *[llm.extract_entities(chunk, entity_types=ENTITY_TYPES) for chunk in chunks]
-    )
-    merged: Dict[str, set] = {}
-    for result in results:
-        for key, values in result.items():
-            if key not in merged:
-                merged[key] = set()
-            merged[key].update(v.strip() for v in values if v.strip())
-    return {key: sorted(list(values)) for key, values in merged.items()}
+def _word_frequencies(words: List[str]) -> Dict[str, float]:
+    freq: Dict[str, float] = {}
+    for word in words:
+        if word in STOPWORDS or len(word) < 3:
+            continue
+        freq[word] = freq.get(word, 0.0) + 1.0
+    if not freq:
+        return freq
+    max_freq = max(freq.values())
+    for word in list(freq.keys()):
+        freq[word] = freq[word] / max_freq
+    return freq
+
+
+def _score_sentences(sentences: List[str], word_scores: Dict[str, float]) -> Dict[int, float]:
+    import re
+
+    scores: Dict[int, float] = {}
+    for idx, sentence in enumerate(sentences):
+        words = _tokenize_words(sentence)
+        if not words:
+            continue
+        score = sum(word_scores.get(word, 0.0) for word in words)
+        score = score / max(len(words), 1)
+        if idx < 5:
+            score *= 1.2
+        if re.search(r"\b(section|title|chapter|rule|regulation|statute|requirement)\b", sentence, re.I):
+            score *= 1.15
+        scores[idx] = score
+    return scores
+
+
+def _select_summary(sentences: List[str], scores: Dict[int, float]) -> List[str]:
+    if not sentences:
+        return []
+    target = max(4, min(12, len(sentences) // 8 or 4))
+    ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+    selected_idx = sorted([idx for idx, _ in ranked[:target]])
+    return [sentences[idx] for idx in selected_idx]
+
+
+def _extract_headings(text: str) -> List[str]:
+    headings = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or len(line) > 120:
+            continue
+        if line.isupper() and len(line) > 5:
+            headings.append(line)
+        elif line.endswith(":") and len(line) > 5:
+            headings.append(line.rstrip(":"))
+    return headings[:12]
+
+
+def _extract_key_terms(text: str, limit: int = 15) -> List[str]:
+    words = _tokenize_words(text)
+    freq = _word_frequencies(words)
+    ranked = sorted(freq.items(), key=lambda item: item[1], reverse=True)
+    return [term for term, _ in ranked[:limit]]
+
+
+def _extract_entities(text: str) -> Dict[str, List[str]]:
+    import re
+
+    entities: Dict[str, set] = {
+        "People": set(),
+        "Organizations": set(),
+        "Agencies": set(),
+        "Legal References": set(),
+        "Dates": set(),
+        "Monetary Values": set(),
+        "Locations": set(),
+        "Key Terms": set(),
+    }
+
+    for agency in AGENCY_NAMES:
+        if re.search(re.escape(agency), text, re.I):
+            entities["Agencies"].add(agency)
+
+    for state in STATE_NAMES:
+        if re.search(rf"\b{re.escape(state)}\b", text):
+            entities["Locations"].add(state)
+
+    month_pattern = r"|".join(MONTHS)
+    date_patterns = [
+        rf"\b(?:{month_pattern})\s+\d{{1,2}}(?:,\s*\d{{4}})?\b",
+        r"\b\d{1,2}/\d{1,2}/\d{2,4}\b",
+    ]
+    for pattern in date_patterns:
+        for match in re.findall(pattern, text):
+            entities["Dates"].add(match)
+
+    money_pattern = r"\$[\d,]+(?:\.\d+)?(?:\s*(?:million|billion|thousand))?"
+    for match in re.findall(money_pattern, text, re.I):
+        entities["Monetary Values"].add(match)
+
+    legal_patterns = [
+        r"\b(?:Section|Sec\.|Title|Chapter|Article)\s+\d+[A-Za-z0-9\-\.]*",
+        r"\b\d+\s+U\.S\.C\.?\s+(?:Section\s+)?\d+[A-Za-z0-9\-]*",
+        r"\b\d+\s+C\.F\.R\.?\s+(?:Section\s+)?\d+[A-Za-z0-9\-]*",
+        r"\b(?:H\.R\.|S\.)\s*\d+",
+    ]
+    for pattern in legal_patterns:
+        for match in re.findall(pattern, text, re.I):
+            entities["Legal References"].add(match)
+
+    org_pattern = r"(?:[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){1,4})(?:\s+(?:Inc|LLC|Corp|Commission|Agency|Department|Administration|Authority|Council|Board|Office|Institute|Association))?"
+    for match in re.findall(org_pattern, text):
+        if len(match.split()) >= 2:
+            entities["Organizations"].add(match)
+
+    people_pattern = r"(?:Senator|Sen\.|Representative|Rep\.|Chair|Secretary|Director|Mr\.|Ms\.|Dr\.)\s+[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+)?"
+    for match in re.findall(people_pattern, text):
+        entities["People"].add(match)
+
+    entities["Key Terms"].update(_extract_key_terms(text))
+
+    return {key: sorted(list(values)) for key, values in entities.items() if values}
 
 
 def _format_entities(entities: Dict[str, List[str]]) -> str:
@@ -246,49 +337,139 @@ def _format_entities(entities: Dict[str, List[str]]) -> str:
         return "## Extracted Entities\n\nNo entities detected."
     output = "## Extracted Entities\n\n"
     for key in sorted(entities.keys()):
-        items = entities[key]
-        if not items:
-            continue
-        heading = key.replace("_", " ").title()
-        output += f"### {heading}\n"
-        for item in items:
+        output += f"### {key}\n"
+        for item in entities[key]:
             output += f"- {item}\n"
         output += "\n"
     return output.strip()
 
 
-async def _generate_action_plan(
-    llm: LLMClient,
-    summary: str,
-    entities: Dict[str, List[str]],
-) -> str:
-    entities_preview = json.dumps(entities, indent=2)
-    system_prompt = (
-        "You are a policy operations lead. Produce concrete, actionable plans "
-        "grounded in the source document."
+def _extract_obligations(sentences: List[str]) -> List[str]:
+    import re
+
+    keywords = re.compile(
+        r"\b(shall|must|required|is required|are required|prohibited|may not|must not|no later than|deadline|due by|effective on|effective date|compliance|submit|file|report|certify)\b",
+        re.I,
     )
-    prompt = (
-        "Create an action plan based on the document summary and extracted entities. "
-        "Include sections: Immediate Actions (0-30 days), Mid-Term Actions (30-90 days), "
-        "Stakeholder Engagement, Legal/Compliance Steps, Communications Plan, and Risks "
-        "with Mitigations. Use numbered tasks with clear intent.\n\n"
-        f"SUMMARY:\n{summary}\n\nENTITIES:\n{entities_preview}"
-    )
-    return await llm.generate(prompt, system_prompt=system_prompt)
+    obligations = []
+    for sentence in sentences:
+        if keywords.search(sentence):
+            obligations.append(sentence)
+    return obligations
 
 
-async def process_document(doc_id: str, text: str) -> List[dict]:
+def _classify_timeframe(sentence: str) -> str:
+    import re
+
+    match = re.search(r"within\s+(\d{1,3})\s+days", sentence, re.I)
+    if match:
+        days = int(match.group(1))
+        if days <= 30:
+            return "Immediate"
+        if days <= 90:
+            return "Mid-Term"
+        return "Long-Term"
+    if re.search(r"(annually|quarterly|monthly|ongoing)", sentence, re.I):
+        return "Ongoing"
+    if re.search(r"no later than|due by|effective on|effective date", sentence, re.I):
+        return "Deadline"
+    return "Required"
+
+
+def _build_action_plan(text: str, sentences: List[str], entities: Dict[str, List[str]]) -> str:
+    obligations = _extract_obligations(sentences)
+    grouped: Dict[str, List[str]] = {
+        "Immediate Actions (0-30 days)": [],
+        "Mid-Term Actions (31-90 days)": [],
+        "Long-Term or Ongoing Actions": [],
+        "Deadline-Driven Actions": [],
+        "Required Actions": [],
+    }
+    for obligation in obligations:
+        bucket = _classify_timeframe(obligation)
+        if bucket == "Immediate":
+            grouped["Immediate Actions (0-30 days)"].append(obligation)
+        elif bucket == "Mid-Term":
+            grouped["Mid-Term Actions (31-90 days)"].append(obligation)
+        elif bucket == "Long-Term" or bucket == "Ongoing":
+            grouped["Long-Term or Ongoing Actions"].append(obligation)
+        elif bucket == "Deadline":
+            grouped["Deadline-Driven Actions"].append(obligation)
+        else:
+            grouped["Required Actions"].append(obligation)
+
+    engagement_targets = entities.get("Agencies", []) + entities.get("Organizations", [])
+    engagement = [f"Coordinate with {target}." for target in engagement_targets[:10]]
+
+    risk_items = [
+        sentence for sentence in sentences
+        if any(term in sentence.lower() for term in ["penalty", "fine", "enforcement", "liability", "violation"])
+    ]
+
+    output = "## Action Plan\n\n"
+    for section, items in grouped.items():
+        if not items:
+            continue
+        output += f"### {section}\n"
+        for idx, item in enumerate(items, 1):
+            output += f"{idx}. {item}\n"
+        output += "\n"
+
+    if engagement:
+        output += "### Stakeholder Engagement\n"
+        for idx, item in enumerate(engagement, 1):
+            output += f"{idx}. {item}\n"
+        output += "\n"
+
+    if risk_items:
+        output += "### Risks and Enforcement\n"
+        for idx, item in enumerate(risk_items[:10], 1):
+            output += f"{idx}. {item}\n"
+        output += "\n"
+
+    if not obligations:
+        output += "### Required Actions\n"
+        output += "No explicit compliance obligations were detected in the extracted text. Review the PDF for implicit requirements.\n"
+
+    return output.strip()
+
+
+def process_document(doc_id: str, text: str) -> List[dict]:
     """
-    Process extracted text and generate artifacts using the configured LLM provider.
+    Process extracted text and generate artifacts using local analysis.
     """
-    llm = _get_llm_client()
-    chunks = _chunk_text(text, llm.model)
-    if not chunks:
+    text = text.strip()
+    if not text:
         raise HTTPException(status_code=422, detail="No extractable text found in PDF")
 
-    summary = await _summarize_chunks(llm, chunks)
-    entities = await _extract_entities(llm, chunks)
-    action_plan = await _generate_action_plan(llm, summary, entities)
+    sentences = _split_sentences(text)
+    word_scores = _word_frequencies(_tokenize_words(text))
+    sentence_scores = _score_sentences(sentences, word_scores)
+    summary_sentences = _select_summary(sentences, sentence_scores)
+    headings = _extract_headings(text)
+
+    summary_output = "## Document Overview\n\n"
+    if headings:
+        summary_output += "### Key Sections\n"
+        for heading in headings:
+            summary_output += f"- {heading}\n"
+        summary_output += "\n"
+
+    if summary_sentences:
+        summary_output += "### Summary\n"
+        for sentence in summary_sentences:
+            summary_output += f"- {sentence}\n"
+        summary_output += "\n"
+
+    key_terms = _extract_key_terms(text)
+    if key_terms:
+        summary_output += "### Key Terms\n"
+        for term in key_terms:
+            summary_output += f"- {term}\n"
+        summary_output += "\n"
+
+    entities = _extract_entities(text)
+    action_plan = _build_action_plan(text, sentences, entities)
 
     artifacts = [
         {
@@ -296,7 +477,7 @@ async def process_document(doc_id: str, text: str) -> List[dict]:
             "document_id": doc_id,
             "artifact_type": "summary",
             "title": "Document Summary",
-            "content": summary,
+            "content": summary_output.strip(),
             "created_at": datetime.utcnow().isoformat(),
             "review_status": REVIEW_PENDING,
         },
@@ -330,6 +511,7 @@ async def process_document(doc_id: str, text: str) -> List[dict]:
     ]
 
     return artifacts
+
 
 
 # =============================================================================
@@ -456,7 +638,7 @@ async def upload_document(
         doc_info["text_length"] = len(text)
         
         # Generate artifacts
-        artifacts = await process_document(doc_id, text)
+        artifacts = process_document(doc_id, text)
         
         # Save artifacts
         for artifact in artifacts:
