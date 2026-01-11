@@ -367,6 +367,161 @@ export default function DocumentsPage() {
                         </div>
                     )}
                 </div>
+                <div className="grid grid-cols-3 gap-6">
+                    {/* Documents List */}
+                    <div className="col-span-1 space-y-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                                <select
+                                    value={docSort}
+                                    onChange={(e) => setDocSort(e.target.value)}
+                                    className="bg-[var(--card)] border border-[var(--border)] rounded-lg px-2 py-1 text-xs"
+                                >
+                                    <option value="uploaded_at">Date</option>
+                                    <option value="filename">Name</option>
+                                    <option value="status">Status</option>
+                                    <option value="review_pending">Review</option>
+                                </select>
+                                <button
+                                    onClick={() => setDocSortDir(docSortDir === 'asc' ? 'desc' : 'asc')}
+                                    className="p-1 rounded border border-[var(--border)] text-[var(--muted)] hover:text-white"
+                                >
+                                    <ArrowUpDown className="w-3 h-3" />
+                                </button>
+                            </div>
+                            <span className="text-xs text-[var(--muted)]">{documents.length} docs</span>
+                        </div>
+
+                        {sortedDocuments.map((doc) => (
+                            <div
+                                key={doc.id}
+                                onClick={() => viewDocument(doc)}
+                                className={clsx(
+                                    'p-4 rounded-xl bg-[var(--card)] border cursor-pointer transition-colors hover:border-blue-500/50',
+                                    selectedDoc?.id === doc.id
+                                        ? 'border-blue-500'
+                                        : 'border-[var(--border)]'
+                                )}
+                            >
+                                <div className="flex items-start justify-between gap-2">
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            {getStatusIcon(doc.status)}
+                                            <span className="font-medium truncate">{doc.filename}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs text-[var(--muted)]">
+                                            <Clock className="w-3 h-3" />
+                                            {formatDistanceToNow(new Date(doc.uploaded_at), { addSuffix: true })}
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            deleteDocument(doc.id);
+                                        }}
+                                        className="p-1 rounded text-[var(--muted)] hover:text-red-400 hover:bg-red-400/10"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                                {doc.error && (
+                                    <p className="mt-2 text-xs text-red-400 line-clamp-2">{doc.error}</p>
+                                )}
+                                {doc.review_pending_count > 0 && (
+                                    <div className="mt-2 flex items-center gap-2">
+                                        <span className="px-2 py-0.5 rounded text-xs bg-yellow-500/20 text-yellow-400">
+                                            {doc.review_pending_count} to review
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Right Side: Artifacts / Details */}
+                    <div className="col-span-2">
+                        {selectedDoc ? (
+                            <div>
+                                <div className="flex flex-col gap-3 mb-4">
+                                    <div className="flex flex-wrap items-center justify-between gap-4">
+                                        <div>
+                                            <h2 className="text-lg font-semibold">
+                                                Generated Artifacts ({artifacts.length})
+                                            </h2>
+                                            <p className="text-sm text-[var(--muted)] mt-1">
+                                                {pageCount} pages | {textLength} chars
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => setShowPdf(!showPdf)}
+                                                className="px-3 py-2 rounded-lg bg-[var(--card)] border border-[var(--border)] text-sm hover:bg-[var(--card-hover)]"
+                                            >
+                                                {showPdf ? 'Hide PDF' : 'Preview PDF'}
+                                            </button>
+                                            <a
+                                                href={pdfUrl}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="px-3 py-2 rounded-lg bg-[var(--card)] border border-[var(--border)] text-sm hover:bg-[var(--card-hover)] inline-flex items-center gap-2"
+                                            >
+                                                <ExternalLink className="w-4 h-4" />
+                                                Open PDF
+                                            </a>
+                                            <a
+                                                href={pdfUrl}
+                                                download
+                                                className="px-3 py-2 rounded-lg bg-[var(--card)] border border-[var(--border)] text-sm hover:bg-[var(--card-hover)] inline-flex items-center gap-2"
+                                            >
+                                                <Download className="w-4 h-4" />
+                                                Download
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-xs text-[var(--muted)]">
+                                            {selectedDoc.review_pending_count > 0
+                                                ? `${selectedDoc.review_pending_count} artifacts need review`
+                                                : 'No pending reviews'}
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <select
+                                                value={artifactSort}
+                                                onChange={(e) => setArtifactSort(e.target.value)}
+                                                className="bg-[var(--card)] border border-[var(--border)] rounded-lg px-2 py-1 text-xs"
+                                            >
+                                                <option value="created_at">Created</option>
+                                                <option value="artifact_type">Type</option>
+                                                <option value="title">Title</option>
+                                                <option value="review_status">Review status</option>
+                                            </select>
+                                            <button
+                                                onClick={() => setArtifactSortDir(artifactSortDir === 'asc' ? 'desc' : 'asc')}
+                                                className="p-1 rounded border border-[var(--border)] text-[var(--muted)] hover:text-white"
+                                                title="Toggle sort direction"
+                                            >
+                                                <ArrowUpDown className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                {showPdf && (
+                                    <div className="mb-6 bg-[var(--card)] border border-[var(--border)] rounded-xl p-4">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h3 className="text-sm font-semibold">PDF Preview</h3>
+                                            <button
+                                                onClick={() => setShowPdf(false)}
+                                                className="p-1 rounded hover:bg-[var(--card-hover)]"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                        <iframe
+                                            src={pdfUrl}
+                                            title="PDF Preview"
+                                            className="w-full h-[520px] rounded-lg border border-[var(--border)]"
+                                        />
+                                    </div>
 
 <div className="grid grid-cols-3 gap-6">
     <div className="col-span-1 space-y-4">
@@ -574,6 +729,7 @@ export default function DocumentsPage() {
                                     selectedArtifact?.id === artifact.id
                                         ? 'border-blue-500'
                                         : 'border-[var(--border)] hover:border-blue-500/50'
+
                                 )}
                             >
                                 <div className="flex items-center gap-2 mb-2">
