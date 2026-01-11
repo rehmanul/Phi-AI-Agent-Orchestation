@@ -666,6 +666,7 @@ async def upload_document(
 
 
 @router.get("/", response_model=List[DocumentInfo])
+@router.get("", response_model=List[DocumentInfo], include_in_schema=False)
 async def list_documents():
     """List all uploaded documents."""
     documents = []
