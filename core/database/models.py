@@ -129,7 +129,7 @@ class Bill(Base):
     last_action: Mapped[Optional[str]] = mapped_column(Text)
     
     # Additional data
-    metadata: Mapped[Dict[str, Any]] = mapped_column(JSONB, default=dict)
+    meta_data: Mapped[Dict[str, Any]] = mapped_column("metadata", JSONB, default=dict)
     sponsors: Mapped[List[str]] = mapped_column(JSONB, default=list)
     cosponsors_count: Mapped[int] = mapped_column(Integer, default=0)
     
@@ -221,7 +221,7 @@ class Legislator(Base):
     
     # Notes and metadata
     notes: Mapped[Optional[str]] = mapped_column(Text)
-    metadata: Mapped[Dict[str, Any]] = mapped_column(JSONB, default=dict)
+    meta_data: Mapped[Dict[str, Any]] = mapped_column("metadata", JSONB, default=dict)
     
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -293,7 +293,7 @@ class IntelligenceItem(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     
     # Additional metadata
-    metadata: Mapped[Dict[str, Any]] = mapped_column(JSONB, default=dict)
+    meta_data: Mapped[Dict[str, Any]] = mapped_column("metadata", JSONB, default=dict)
     
     __table_args__ = (
         Index("ix_intelligence_source_published", "source_type", "published_at"),
@@ -343,7 +343,7 @@ class Claim(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     
     # Metadata
-    metadata: Mapped[Dict[str, Any]] = mapped_column(JSONB, default=dict)
+    meta_data: Mapped[Dict[str, Any]] = mapped_column("metadata", JSONB, default=dict)
 
 
 # =============================================================================
@@ -422,7 +422,7 @@ class ContentItem(Base):
     published_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     
     # Metadata
-    metadata: Mapped[Dict[str, Any]] = mapped_column(JSONB, default=dict)
+    meta_data: Mapped[Dict[str, Any]] = mapped_column("metadata", JSONB, default=dict)
     
     # Relationships
     campaign: Mapped[Optional["Campaign"]] = relationship(
@@ -501,7 +501,7 @@ class Action(Base):
     )
     
     # Metadata
-    metadata: Mapped[Dict[str, Any]] = mapped_column(JSONB, default=dict)
+    meta_data: Mapped[Dict[str, Any]] = mapped_column("metadata", JSONB, default=dict)
     
     # Relationships
     campaign: Mapped[Optional["Campaign"]] = relationship("Campaign", back_populates="actions")
@@ -614,7 +614,7 @@ class Supporter(Base):
     )
     
     # Metadata
-    metadata: Mapped[Dict[str, Any]] = mapped_column(JSONB, default=dict)
+    meta_data: Mapped[Dict[str, Any]] = mapped_column("metadata", JSONB, default=dict)
 
 
 # =============================================================================
