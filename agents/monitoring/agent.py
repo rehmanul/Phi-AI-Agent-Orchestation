@@ -10,12 +10,14 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
+import re
 import structlog
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from agents.base import AgentState, BaseAgent
 from core.config import settings
-from core.database import IntelligenceItem, get_async_session
+from core.database import Campaign, IntelligenceItem, get_async_session
 from core.messaging import AgentMessage, Topics
 
 logger = structlog.get_logger()
@@ -503,9 +505,77 @@ class MonitoringAgent(BaseAgent):
     
     async def _load_tracked_bills(self) -> None:
         """Load tracked bills from database."""
-        # TODO: Load from campaigns table
-        # For now, use empty list
-        self.tracked_bills = []
+        async with get_async_session() as session:
+            # Query active campaigns with bills
+            stmt = (
+                select(Campaign)
+                .where(Campaign.status == "active")
+                .options(selectinload(Campaign.bills))
+            )
+            result = await session.execute(stmt)
+            campaigns = result.scalars().all()
+
+            tracked_bills_map = {}
+
+            for campaign in campaigns:
+                for bill in campaign.bills:
+                    # Extract bill type and number
+                    bill_type = bill.metadata.get("bill_type")
+                    bill_number_str = bill.number
+                    bill_number_int = None
+
+                    # Try to parse number if type missing (e.g. "HR 1234")
+                    if not bill_type and bill_number_str and " " in bill_number_str:
+                        parts = bill_number_str.split(" ", 1)
+                        if len(parts) == 2 and parts[0].isalpha():
+                            bill_type = parts[0].lower()
+
+                    # If still no bill type, try external_id (e.g. "hr1234-118")
+                    if not bill_type and bill.external_id:
+                        m = re.match(r"([a-z]+)(\d+)", bill.external_id.lower())
+                        if m:
+                            bill_type = m.group(1)
+
+                    # Parse number to int
+                    try:
+                        val = bill_number_str
+                        if val and " " in val:
+                            val = val.split(" ")[-1]
+                        bill_number_int = int(val)
+                    except (ValueError, TypeError):
+                        self.logger.warning(
+                            "Could not parse bill number",
+                            bill_id=str(bill.id),
+                            number=bill.number
+                        )
+                        continue
+
+                    if not bill_type:
+                        self.logger.warning(
+                            "Could not determine bill type",
+                            bill_id=str(bill.id),
+                            number=bill.number
+                        )
+                        continue
+
+                    key = f"{bill.congress}_{bill_type}_{bill_number_int}"
+
+                    if key not in tracked_bills_map:
+                        tracked_bills_map[key] = {
+                            "congress": bill.congress,
+                            "bill_type": bill_type,
+                            "bill_number": bill_number_int,
+                            "title": bill.title,
+                            "last_action": bill.last_action,
+                        }
+
+            self.tracked_bills = list(tracked_bills_map.values())
+
+            self.logger.info(
+                "Loaded tracked bills",
+                count=len(self.tracked_bills),
+                campaigns=len(campaigns)
+            )
 
 
 # =============================================================================

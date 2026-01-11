@@ -13,7 +13,7 @@ from sqlalchemy import select
 
 from agents.base import BaseAgent
 from core.config import settings
-from core.database import ContentItem, Supporter, get_async_session
+from core.database import ContentItem, Legislator, Supporter, get_async_session
 from core.messaging import AgentMessage, Topics
 
 logger = structlog.get_logger()
@@ -252,8 +252,25 @@ class DistributionAgent(BaseAgent):
     
     async def _get_supporters_for_legislator(self, legislator_id: str) -> List[Any]:
         """Get supporters in a legislator's district."""
-        # TODO: Implement district matching
-        return []
+        async with get_async_session() as session:
+            # 1. Get the legislator to find their state/district
+            stmt = select(Legislator).where(Legislator.id == legislator_id)
+            result = await session.execute(stmt)
+            legislator = result.scalar_one_or_none()
+
+            if not legislator:
+                self.logger.warning("Legislator not found", legislator_id=legislator_id)
+                return []
+
+            # 2. Find supporters in that district
+            # Note: Legislator.district maps to Supporter.congressional_district
+            stmt = select(Supporter).where(
+                Supporter.state == legislator.state,
+                Supporter.congressional_district == legislator.district,
+                Supporter.email_opted_in == True
+            )
+            result = await session.execute(stmt)
+            return result.scalars().all()
     
     async def _send_personalized_emails(
         self, content: Dict, supporters: List
