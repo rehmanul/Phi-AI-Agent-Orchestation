@@ -1,18 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { buildBackendUrl, proxyJsonResponse } from './proxy';
 
-const API_URL = process.env.API_URL || 'http://localhost:8000';
+export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
-        const res = await fetch(`${API_URL}/api/documents/`, { cache: 'no-store' });
-        if (!res.ok) {
-            return NextResponse.json([], { status: res.status });
-        }
-
-        const documents = await res.json();
-        return NextResponse.json(documents);
+        const res = await fetch(buildBackendUrl('/api/documents/', request), { cache: 'no-store' });
+        return proxyJsonResponse(res, []);
     } catch (error: unknown) {
         console.error('List documents error:', error);
-        return NextResponse.json([], { status: 200 });
+        return proxyJsonResponse(null, []);
     }
 }
